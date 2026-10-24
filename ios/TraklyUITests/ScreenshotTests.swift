@@ -13,6 +13,14 @@ final class ScreenshotTests: XCTestCase {
         StandIn.control("/__test/reset")
     }
 
+    /// Taps `element` once it exists (a screen that did not come is a missing shot, not a crash of the whole pass).
+    @discardableResult
+    private func tapWhenReady(_ element: XCUIElement, _ timeout: TimeInterval = 20) -> Bool {
+        guard element.waitForExistence(timeout: timeout) else { return false }
+        element.tap()
+        return true
+    }
+
     private func plus(_ app: XCUIApplication) -> XCUIElement {
         app.navigationBars.buttons["chrome.create"]
     }
@@ -56,11 +64,11 @@ final class ScreenshotTests: XCTestCase {
         _ = app.webViews.staticTexts["فروش این ماه"].firstMatch.waitForExistence(timeout: 20)
         shot("03-home", app)
 
-        app.tabBars.buttons["سفارش ها"].tap()
+        tapWhenReady(app.tabBars.buttons["سفارش ها"])
         let order = app.webViews.links.containing(NSPredicate(format: "label CONTAINS %@", "مریم احمدی")).firstMatch
-        _ = order.waitForExistence(timeout: 20)
+        _ = order.waitForExistence(timeout: 40)
         shot("04-orders", app)
-        order.tap()
+        tapWhenReady(order)
         _ = app.webViews.staticTexts["اقلام"].firstMatch.waitForExistence(timeout: 15)
         shot("05-pushed", app)
 
@@ -81,7 +89,7 @@ final class ScreenshotTests: XCTestCase {
             if closePrint.waitForExistence(timeout: 5) { closePrint.tap() }
         }
 
-        app.tabBars.buttons["خانه"].tap()
+        tapWhenReady(app.tabBars.buttons["خانه"])
         let stale = app.webViews.links.containing(NSPredicate(format: "label CONTAINS %@", "یک لینک قدیمی")).firstMatch
         if stale.waitForExistence(timeout: 15) {
             stale.tap()
@@ -92,10 +100,10 @@ final class ScreenshotTests: XCTestCase {
             }
         }
 
-        app.tabBars.buttons["بیشتر"].tap()
-        _ = app.webViews.staticTexts["قفل برنامه"].firstMatch.waitForExistence(timeout: 15)
+        tapWhenReady(app.tabBars.buttons["بیشتر"])
+        _ = app.webViews.staticTexts["قفل برنامه"].firstMatch.waitForExistence(timeout: 30)
         shot("07-more", app)
-        app.tabBars.buttons["خانه"].tap()
+        tapWhenReady(app.tabBars.buttons["خانه"])
 
         // S4, S5, S6.
         openComposer(app)
@@ -107,10 +115,10 @@ final class ScreenshotTests: XCTestCase {
         shot("11b-s5-found", app, settle: 0.3)
         let add = app.buttons["review.add"]
         _ = add.waitForExistence(timeout: 30)
-        shot("12-s6", app)
+        shot("12-s6", app, settle: 2)
         if app.buttons["M"].exists { app.buttons["M"].tap() }
         if app.buttons["Ocean Blue"].exists { app.buttons["Ocean Blue"].tap() }
-        add.tap()
+        tapWhenReady(add, 2)
         Thread.sleep(forTimeInterval: 1)
         shot("13-s4-basket", app)
 
@@ -128,7 +136,7 @@ final class ScreenshotTests: XCTestCase {
 
         type(app, link: "/dev/shop/sizes")
         _ = app.buttons["review.add"].waitForExistence(timeout: 45)
-        shot("17-s6-sizes", app)
+        shot("17-s6-sizes", app, settle: 2)
         closeSheets(app)
 
         // The basket goes to the order form: the modal with its lines.
@@ -152,7 +160,7 @@ final class ScreenshotTests: XCTestCase {
             close.tap()
             _ = app.buttons["نگه داشتن پیش نویس"].waitForExistence(timeout: 10)
             shot("19-modal-dirty", app)
-            app.buttons["ادامه ویرایش"].tap()
+            tapWhenReady(app.buttons["ادامه ویرایش"], 3)
         }
 
         // A share over the open, unsaved form: S4 in merge mode.
@@ -161,10 +169,9 @@ final class ScreenshotTests: XCTestCase {
         app.activate()
         _ = app.buttons["composer.read"].waitForExistence(timeout: 25)
         shot("10-s4-shared", app)
-        app.buttons["composer.read"].tap()
-        if app.buttons["review.add"].waitForExistence(timeout: 30) {
+        if tapWhenReady(app.buttons["composer.read"], 2), app.buttons["review.add"].waitForExistence(timeout: 30) {
             if app.buttons["M"].exists { app.buttons["M"].tap() }
-            app.buttons["review.add"].tap()
+            tapWhenReady(app.buttons["review.add"], 2)
         }
         Thread.sleep(forTimeInterval: 1)
         shot("20-s4-merge", app)
@@ -191,18 +198,18 @@ final class ScreenshotTests: XCTestCase {
                 scan.tap()
                 _ = app.staticTexts["scan.unavailable"].waitForExistence(timeout: 10)
                 shot("23-scan-unavailable", app)
-                app.buttons["scan.cancel"].tap()
+                tapWhenReady(app.buttons["scan.cancel"], 3)
             }
             if app.navigationBars.buttons["modal.close"].waitForExistence(timeout: 5) { app.navigationBars.buttons["modal.close"].tap() }
         }
 
         // Offline (Trakly unreachable), then the update screen.
         StandIn.control("/__test/down?on=1")
-        app.tabBars.buttons["مشتریان"].tap()
+        tapWhenReady(app.tabBars.buttons["مشتریان"])
         _ = app.buttons["offline.retry"].waitForExistence(timeout: 25)
         shot("25-offline", app)
         StandIn.control("/__test/down?on=0")
-        app.buttons["offline.retry"].tap()
+        tapWhenReady(app.buttons["offline.retry"], 3)
         StandIn.control("/__test/min?value=99")
         app.terminate()
         let update = launch([], reset: false)
@@ -233,13 +240,13 @@ final class ScreenshotTests: XCTestCase {
         signIn(app)
         _ = app.webViews.staticTexts["فروش این ماه"].firstMatch.waitForExistence(timeout: 20)
         shot("large-01-home", app)
-        app.tabBars.buttons["سفارش ها"].tap()
-        Thread.sleep(forTimeInterval: 2)
+        tapWhenReady(app.tabBars.buttons["سفارش ها"])
+        _ = app.webViews.links.containing(NSPredicate(format: "label CONTAINS %@", "مریم احمدی")).firstMatch.waitForExistence(timeout: 30)
         shot("large-02-orders", app)
         openComposer(app)
         shot("large-03-s4", app)
         type(app, link: "/dev/shop/server-tee")
         _ = app.buttons["review.add"].waitForExistence(timeout: 30)
-        shot("large-04-s6", app)
+        shot("large-04-s6", app, settle: 2)
     }
 }

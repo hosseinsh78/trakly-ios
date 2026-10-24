@@ -48,6 +48,12 @@ enum Theme {
         return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
     }
 
+    /// The fixed-size font of the system bars' titles, buttons and tab items: like the stock bars, they keep their size
+    /// at every Dynamic Type setting (a long press shows the Large Content Viewer); the content follows the setting.
+    static func barFont(_ size: CGFloat, bold: Bool = false) -> UIFont {
+        UIFont(name: bold ? boldName : regularName, size: size) ?? UIFont.systemFont(ofSize: size, weight: bold ? .bold : .regular)
+    }
+
     /// The same font for SwiftUI.
     static func swiftUIFont(_ size: CGFloat, bold: Bool = false, relativeTo style: Font.TextStyle = .body) -> Font {
         Font.custom(bold ? boldName : regularName, size: size, relativeTo: style)
@@ -58,13 +64,13 @@ enum Theme {
     static func applyAppearance() {
         let navigation = UINavigationBarAppearance()
         navigation.configureWithDefaultBackground()
-        navigation.titleTextAttributes = [.font: font(17, bold: true, style: .headline), .foregroundColor: ink]
+        navigation.titleTextAttributes = [.font: barFont(17, bold: true), .foregroundColor: ink]
         navigation.largeTitleTextAttributes = [.font: font(30, bold: true, style: .largeTitle), .foregroundColor: ink]
         let buttons = UIBarButtonItemAppearance(style: .plain)
-        buttons.normal.titleTextAttributes = [.font: font(17, style: .body)]
+        buttons.normal.titleTextAttributes = [.font: barFont(17)]
         navigation.buttonAppearance = buttons
         let done = UIBarButtonItemAppearance(style: .done)
-        done.normal.titleTextAttributes = [.font: font(17, bold: true, style: .body)]
+        done.normal.titleTextAttributes = [.font: barFont(17, bold: true)]
         navigation.doneButtonAppearance = done
         UINavigationBar.appearance().standardAppearance = navigation
         UINavigationBar.appearance().compactAppearance = navigation
@@ -79,12 +85,12 @@ enum Theme {
         let tab = UITabBarAppearance()
         tab.configureWithDefaultBackground()
         let item = UITabBarItemAppearance(style: .stacked)
-        item.normal.titleTextAttributes = [.font: font(11, style: .caption2), .foregroundColor: ink3]
-        item.selected.titleTextAttributes = [.font: font(11, bold: true, style: .caption2), .foregroundColor: brand]
+        item.normal.titleTextAttributes = [.font: barFont(11), .foregroundColor: ink3]
+        item.selected.titleTextAttributes = [.font: barFont(11, bold: true), .foregroundColor: brand]
         item.normal.iconColor = ink3
         item.selected.iconColor = brand
         item.normal.badgeBackgroundColor = brand
-        item.normal.badgeTextAttributes = [.font: font(12, bold: true, style: .caption2), .foregroundColor: UIColor.white]
+        item.normal.badgeTextAttributes = [.font: barFont(12, bold: true), .foregroundColor: UIColor.white]
         tab.stackedLayoutAppearance = item
         tab.inlineLayoutAppearance = item
         tab.compactInlineLayoutAppearance = item
@@ -92,8 +98,8 @@ enum Theme {
         UITabBar.appearance().scrollEdgeAppearance = tab
         UITabBar.appearance().tintColor = brand
 
-        UIBarButtonItem.appearance().setTitleTextAttributes([.font: font(17, style: .body)], for: .normal)
-        UIBarButtonItem.appearance().setTitleTextAttributes([.font: font(17, style: .body)], for: .highlighted)
+        UIBarButtonItem.appearance().setTitleTextAttributes([.font: barFont(17)], for: .normal)
+        UIBarButtonItem.appearance().setTitleTextAttributes([.font: barFont(17)], for: .highlighted)
         UIRefreshControl.appearance().tintColor = brand
         UISwitch.appearance().onTintColor = brand
     }

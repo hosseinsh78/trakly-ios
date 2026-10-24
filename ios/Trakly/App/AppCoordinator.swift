@@ -236,11 +236,14 @@ final class AppCoordinator: NSObject {
     func chrome(for panel: Panel, in stack: TabStack) -> PageState.Chrome {
         let lastContext = defaults.string(forKey: Keys.lastContext)
         let coldStartBars = launchCoverShown && lastContext == "tab" && tabs.fromWeb == false && panel.shownPage == nil
+        // A tab's first page still loading after a tab switch: the bars stay (they never blink away), with no title.
+        let tabLoading = !launchCoverShown && tabs.fromWeb && panel.shownPage == nil && panel !== modal?.panel
+            && Tabs.rootPaths.contains { $0.0 == stack.key }
         return PageState.chrome(
             page: panel.shownPage,
             httpError: panel.httpError,
             tabs: tabs,
-            coldStartBars: coldStartBars && !tabs.items.isEmpty,
+            coldStartBars: (coldStartBars || tabLoading) && !tabs.items.isEmpty,
             night: resolvedNight,
             canGoBack: stack.depth > 1 || panel.webView.canGoBack
         )

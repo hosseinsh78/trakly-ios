@@ -27,7 +27,8 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     }
 
     private let lock = NSLock()
-    private var jobs: [Int: Job] = [:]
+    /// The running fetches by task (an object key: task identifiers are only unique within one session).
+    private var jobs: [ObjectIdentifier: Job] = [:]
     private let queue: OperationQueue = {
         let queue = OperationQueue()
         queue.maxConcurrentOperationCount = 1
@@ -35,7 +36,15 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         return queue
     }()
 
-    private lazy var session: URLSession = {
+    /// Made once in `init`: fetches run concurrently, and a lazy property would race (two sessions, lost jobs).
+    private var session: URLSession!
+
+    override init() {
+        super.init()
+        session = URLSession(configuration: ImageFetcher.configuration(), delegate: self, delegateQueue: queue)
+    }
+
+    private static func configuration() -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
@@ -46,8 +55,8 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
         configuration.timeoutIntervalForRequest = TimeInterval(Limits.imageTimeoutMs) / 1000
         configuration.timeoutIntervalForResource = TimeInterval(Limits.imageTimeoutMs) / 1000
         configuration.httpAdditionalHeaders = ["Accept": "image/*"]
-        return URLSession(configuration: configuration, delegate: self, delegateQueue: queue)
-    }()
+        return configuration
+    }
 
     private static let imageTypes: Set<String> = [UTType.jpeg.identifier, UTType.png.identifier, UTType.gif.identifier, UTType.webP.identifier, UTType.heic.identifier, UTType.heif.identifier]
 
@@ -64,7 +73,7 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             request.httpShouldHandleCookies = false
             let task = session.dataTask(with: request)
             lock.lock()
-            jobs[task.taskIdentifier] = Job(dev: fixture, host: host, continuation: continuation)
+            jobs[ObjectIdentifier(task)] = Job(dev: fixture, host: host, continuation: continuation)
             lock.unlock()
             task.resume()
         }
@@ -124,7 +133,7 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     private func jobFor(_ task: URLSessionTask) -> Job? {
         lock.lock()
         defer { lock.unlock() }
-        return jobs[task.taskIdentifier]
+        return jobs[ObjectIdentifier(task)]
     }
 
     // MARK: - URLSessionDataDelegate
@@ -176,7 +185,7 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         lock.lock()
-        let job = jobs.removeValue(forKey: task.taskIdentifier)
+        let job = jobs.removeValue(forKey: ObjectIdentifier(task))
         lock.unlock()
         guard let job else { return }
         let accepted = error == nil && !job.refused && job.addressChecked && !job.data.isEmpty

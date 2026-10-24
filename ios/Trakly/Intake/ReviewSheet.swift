@@ -299,8 +299,8 @@ struct ReviewSheet: View {
             .accessibilityIdentifier("review.add")
             // Side by side when both fit on one line, else one under the other (large text, a small phone).
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) { secondaryButtons }
-                VStack(spacing: 8) { secondaryButtons }
+                HStack(spacing: 10) { secondaryButtons(compactCancel: true) }
+                VStack(spacing: 8) { secondaryButtons(compactCancel: false) }
             }
         }
         .padding(.horizontal, 16)
@@ -312,8 +312,9 @@ struct ReviewSheet: View {
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 
+    /// «افزودن و محصول بعدی» and «انصراف»; side by side, «انصراف» keeps its own width and the other takes the rest.
     @ViewBuilder
-    private var secondaryButtons: some View {
+    private func secondaryButtons(compactCancel: Bool) -> some View {
         if !state.line {
             Button(L.s("review_add_next")) {
                 actions.add(state, true)
@@ -326,6 +327,7 @@ struct ReviewSheet: View {
         Button(L.s("review_cancel"), action: actions.cancel)
             .buttonStyle(SecondaryButtonStyle())
             .lineLimit(1)
+            .fixedSize(horizontal: compactCancel && !state.line, vertical: false)
             .disabled(state.saving)
             .accessibilityIdentifier("review.cancel")
     }
