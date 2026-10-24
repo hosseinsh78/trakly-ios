@@ -46,6 +46,12 @@ extension XCTestCase {
             list += ["-TraklyTopology", topology]
         }
         app.launchArguments = list + arguments
+        if environment["TRAKLY_PASS"] == "ios17" {
+            // On the iOS 17 runtime, Xcode 26's UI-test runtime-issue hook (XCTAutomationSupport) crashes the app when
+            // WebKit logs a fault as its network process starts (strcmp on a null in runtime_issue_os_log_fault_callback,
+            // seen in the crash reports): the app's os_log is off for that pass.
+            app.launchEnvironment["OS_ACTIVITY_MODE"] = "disable"
+        }
         app.launch()
         return app
     }
