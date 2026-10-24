@@ -15,6 +15,7 @@ struct ComposerView: View {
     var body: some View {
         NavigationStack {
             List {
+                Group {
                 if let draftAt = model.draftAt, !model.merge {
                     Section {
                         Button {
@@ -96,6 +97,9 @@ struct ComposerView: View {
                     }
                     .accessibilityIdentifier("composer.blank")
                 }
+                }
+                // The rows take the brand surface like S6 and the lock (the system grey card looked foreign in dark mode).
+                .listRowBackground(Color(Theme.surface))
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
