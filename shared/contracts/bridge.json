@@ -1,0 +1,528 @@
+{
+    "$comment": "TraklyNative bridge v1 (docs/specs/phase10-apps-and-stores.md D7, B2-B6, B13). Changed only through the lead. node shared/app/contract.check.mjs proves that erp/resources/js/lib/native/messages.ts (MESSAGE_SPECS, the field grammar), android core/bridge/Messages.kt and ios TraklyCore/BridgeMessages.swift list exactly these types.",
+    "v": 1,
+    "types": {
+        "hello": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "path": "path"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "config": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {
+                "topology": "enum(stacks|single)",
+                "disabled": "[feature](0..11)",
+                "min": "int(0..999999999)",
+                "storeUrl": "https|null",
+                "accountKey": "accountKey|null"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "ready": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "page": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {
+                "context": "enum(auth|tab|push|modal|standalone)",
+                "tab": "tab|null",
+                "title": "str(0..120)",
+                "titleVisible": "bool",
+                "back": "back|null",
+                "refreshable": "bool",
+                "dirty": "bool",
+                "overlay": "bool",
+                "search": "bool",
+                "action": "action|null",
+                "tone": "enum(night|day)"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "chrome"
+        },
+        "title": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {
+                "visible": "bool"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "chrome"
+        },
+        "tabs": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {
+                "items": "[tabItem](1..4)",
+                "create": "bool",
+                "quick": "bool",
+                "draft": "draft|null"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "chrome"
+        },
+        "compose": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "intake"
+        },
+        "route": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "url": "link",
+                "context": "enum(tab|push|modal|external)",
+                "tab": "tab|null"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "haptic": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {
+                "kind": "enum(selection|light|medium|success|warning|error)"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "intake.line": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "lineKey": "str(1..64)",
+                "url": "url",
+                "product": "product|null"
+            },
+            "maxBytes": 1048576,
+            "path": "order_form",
+            "feature": "intake"
+        },
+        "intake.take": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "intakeId": "token"
+            },
+            "maxBytes": 65536,
+            "path": "order_form",
+            "feature": "intake"
+        },
+        "intake.pending": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": "order_form",
+            "feature": "intake"
+        },
+        "product.image": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "ref": "token"
+            },
+            "maxBytes": 65536,
+            "path": "order_form",
+            "feature": "intake"
+        },
+        "modal.close": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "download": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "url": "link",
+                "name": "str(1..255)?"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "download"
+        },
+        "file.save": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "name": "str(1..255)",
+                "mime": "mime",
+                "data": "base64"
+            },
+            "maxBytes": 14680064,
+            "path": null,
+            "feature": "file.save"
+        },
+        "print": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "url": "link",
+                "title": "str(0..120)"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "print"
+        },
+        "share": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "text": "str(1..4000)?",
+                "url": "https?",
+                "title": "str(1..120)?"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "share"
+        },
+        "open.external": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "url": "link"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "scan": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "formats": "[str(1..24)](1..16)"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "scan"
+        },
+        "appearance.set": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {
+                "mode": "enum(system|light|dark)"
+            },
+            "maxBytes": 65536,
+            "path": "more_profile",
+            "feature": null
+        },
+        "lock.set": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {
+                "enabled": "bool"
+            },
+            "maxBytes": 65536,
+            "path": "more_profile",
+            "feature": "lock"
+        },
+        "shopdata.clear": {
+            "dir": "web",
+            "kind": "request",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": "more_profile",
+            "feature": null
+        },
+        "session.ended": {
+            "dir": "web",
+            "kind": "notify",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "back": {
+            "dir": "native",
+            "kind": "request",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "intake.fetch": {
+            "dir": "native",
+            "kind": "request",
+            "fields": {
+                "url": "url",
+                "capture": "str(1..900000)?"
+            },
+            "maxBytes": 1048576,
+            "path": null,
+            "feature": "intake"
+        },
+        "intake.offer": {
+            "dir": "native",
+            "kind": "request",
+            "fields": {
+                "intakeId": "token"
+            },
+            "maxBytes": 65536,
+            "path": "order_form",
+            "feature": "intake"
+        },
+        "insets": {
+            "dir": "native",
+            "kind": "event",
+            "fields": {
+                "top": "num(0..10000)",
+                "bottom": "num(0..10000)"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "visit": {
+            "dir": "native",
+            "kind": "request",
+            "fields": {
+                "url": "link"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "tab": {
+            "dir": "native",
+            "kind": "event",
+            "fields": {
+                "key": "tab",
+                "reselect": "bool"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "chrome"
+        },
+        "refresh": {
+            "dir": "native",
+            "kind": "event",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "chrome"
+        },
+        "search": {
+            "dir": "native",
+            "kind": "event",
+            "fields": {},
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "chrome"
+        },
+        "action": {
+            "dir": "native",
+            "kind": "event",
+            "fields": {
+                "id": "str(1..64)"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": "chrome"
+        },
+        "appearance": {
+            "dir": "native",
+            "kind": "event",
+            "fields": {
+                "mode": "enum(system|light|dark)",
+                "resolved": "enum(light|dark)"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        },
+        "appState": {
+            "dir": "native",
+            "kind": "event",
+            "fields": {
+                "active": "bool"
+            },
+            "maxBytes": 65536,
+            "path": null,
+            "feature": null
+        }
+    },
+    "features": [
+        "chrome",
+        "intake",
+        "reader",
+        "scan",
+        "print",
+        "share",
+        "download",
+        "file.save",
+        "lock",
+        "shareEntry",
+        "clipboard"
+    ],
+    "tabKeys": [
+        "home",
+        "orders",
+        "customers",
+        "products",
+        "payments",
+        "more"
+    ],
+    "errors": [
+        "unsupported",
+        "invalid",
+        "denied",
+        "rate",
+        "busy",
+        "cancelled",
+        "failed",
+        "gone",
+        "not_allowed",
+        "unavailable"
+    ],
+    "limits": {
+        "origin": "https://erp.trakly.info",
+        "idPattern": "^[A-Za-z0-9_-]{8,40}$",
+        "tokenPattern": "^[A-Za-z0-9_-]{22}$",
+        "accountKeyPattern": "^[0-9a-f]{32}$",
+        "orderFormPath": "^\\/app\\/orders\\/(create|quick|\\d+\\/edit)$",
+        "printPath": "^\\/app\\/(?:[a-z0-9-]+\\/)*print(?:\\/(?:invoices|labels))?$",
+        "moreProfilePaths": [
+            "/app/more",
+            "/app/profile"
+        ],
+        "panelPaths": [
+            "/",
+            "/app",
+            "/app/*",
+            "/login",
+            "/login/*",
+            "/logout",
+            "/join"
+        ],
+        "fileSaveMimes": [
+            "text/csv",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "text/plain"
+        ],
+        "defaultMaxBytes": 65536,
+        "absoluteMaxBytes": 14680064,
+        "urlChars": 2048,
+        "lineKeyChars": 64,
+        "pageTitleChars": 120,
+        "choiceTitleChars": 190,
+        "labelChars": 60,
+        "tabLabelChars": 40,
+        "tabsMax": 4,
+        "quantityMin": 1,
+        "quantityMax": 999,
+        "basketMax": 20,
+        "fileNameChars": 255,
+        "fileSaveDecodedBytes": 10485760,
+        "shareTextChars": 4000,
+        "scanFormatsMax": 16,
+        "helloTimeoutMs": 1000,
+        "backReplyMs": 500,
+        "requestTimeoutMs": 15000,
+        "intakeFetchTimeoutMs": 35000,
+        "hostWaitMs": 10000,
+        "intakeIdMinutes": 30,
+        "refMinutes": 30,
+        "pendingChoiceMinutes": 15,
+        "nativeReplyMaxBytes": {
+            "intake.take": 4194304,
+            "product.image": 6291456
+        },
+        "pageReplyMaxBytes": {
+            "intake.fetch": 1048576
+        },
+        "rates": {
+            "intake.fetch": [
+                {
+                    "max": 20,
+                    "windowMs": 60000
+                }
+            ],
+            "product.image": [
+                {
+                    "max": 40,
+                    "windowMs": 600000
+                }
+            ],
+            "print": [
+                {
+                    "max": 10,
+                    "windowMs": 60000
+                }
+            ],
+            "download": [
+                {
+                    "max": 10,
+                    "windowMs": 60000
+                }
+            ],
+            "compose": [
+                {
+                    "max": 10,
+                    "windowMs": 60000
+                }
+            ],
+            "file.save": [
+                {
+                    "max": 10,
+                    "windowMs": 60000
+                }
+            ],
+            "open.external": [
+                {
+                    "max": 20,
+                    "windowMs": 60000
+                }
+            ],
+            "share": [
+                {
+                    "max": 10,
+                    "windowMs": 60000
+                }
+            ],
+            "scan": [
+                {
+                    "max": 10,
+                    "windowMs": 60000
+                }
+            ],
+            "reader": [
+                {
+                    "max": 10,
+                    "windowMs": 60000
+                },
+                {
+                    "max": 120,
+                    "windowMs": 3600000
+                }
+            ]
+        }
+    }
+}

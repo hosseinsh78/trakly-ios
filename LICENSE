@@ -1,0 +1,7 @@
+Copyright (c) 2026 Trakly. All rights reserved.
+
+This repository is a mirror of the Trakly iOS client, published for transparency and continuous integration only. No
+licence is granted to use, copy, modify, merge, publish, distribute, sublicense or sell any part of it.
+
+The bundled Vazirmatn font (ios/Trakly/Resources/Fonts) is licensed under the SIL Open Font License 1.1; its licence
+text is in ios/Trakly/Resources/Fonts/OFL.txt.

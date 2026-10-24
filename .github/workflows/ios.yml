@@ -1,0 +1,70 @@
+# iOS CI of the public mirror hosseinsh78/trakly-ios (docs/specs/phase10-apps-and-stores.md §K5, §K7, §L4, D19, D31,
+# §O13 O-Q2): GitHub-hosted runners are free for a public repository, so the iOS build-out runs here, not in the private
+# repository. Generated from the private repository's ios/mirror/ios.yml by .devtools/ios-mirror.mjs; never edited here.
+#
+# - push: TraklyCore's `swift test` on Linux (the official swift image, pinned by tag and digest) with the Node checks;
+#   on macOS the XcodeGen project, `build-for-testing` and the XCTest unit tests (TraklyTests) on the Simulator.
+# - workflow_dispatch: the XCUITest flows and the screenshot set (§L4) in light and dark on the devices of `profiles`
+#   (iPhone SE (3rd generation), iPhone 16, iPhone 17 Pro Max), one large Dynamic Type pass, and optionally the iOS 17
+#   runtime run (`ios17`). The UI tests talk only to the local panel stand-in ios/TraklyUITests/Panel/server.mjs.
+# Artifacts are kept 7 days. No secret is used anywhere in this repository.
+name: ios
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      profiles:
+        description: 'UI test devices: one or more of se, 16, 17promax (comma or space separated), or none'
+        type: string
+        default: 'se 16 17promax'
+      large_text:
+        description: 'Also shoot the set once at a large Dynamic Type size (on the first device)'
+        type: boolean
+        default: true
+      ios17:
+        description: 'Also run launch, composer to reader and the site-data flow on the iOS 17 runtime (about 8 GB download)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XCODE_APP: /Applications/Xcode_26.6.app
+  XCODEGEN_VERSION: '2.46.0'
+  XCODEGEN_SHA256: 4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806
+
+jobs:
+  core:
+    name: TraklyCore (Linux) and the Node checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node 26
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26'
+          package-manager-cache: false
+
+      - name: Generated copy and colours are current (shared/app/build.mjs --check)
+        run: node shared/app/build.mjs --check
+
+      - name: iOS source check
+        run: node ios/tools/source.check.mjs
+
+      - name: swift test (ios/TraklyCore)
+        run: >-
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo/ios/TraklyCore
+          swift:6.3.3-noble@sha256:c2f3ac2eb806ce43f68859c3d52bd3bb1cfc88672fb3a948b76e136d98e39278
+          swift test

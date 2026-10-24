@@ -1,0 +1,1251 @@
+{
+    "sampleUrls": [
+        "https://erp.trakly.info/extension/sample"
+    ],
+    "appSampleUrls": [
+        "https://erp.trakly.info/extension/sample",
+        "https://erp.trakly.info/extension/sample?review=1"
+    ],
+    "devSampleUrls": [
+        "https://erp.trakly.info/extension/sample",
+        "https://erp.trakly.info/extension/sample?review=1",
+        "http://localhost:8000/extension/sample",
+        "http://127.0.0.1:8000/extension/sample",
+        "http://10.0.2.2:8000/extension/sample"
+    ],
+    "cases": [
+        {
+            "url": "https://www.sephora.com/product/soft-pinch-P97989778?skuId=2518959",
+            "ok": true,
+            "normalised": "https://www.sephora.com/product/soft-pinch-P97989778?skuId=2518959"
+        },
+        {
+            "url": "https://www.macys.com/shop/product/x?ID=123",
+            "ok": true,
+            "normalised": "https://www.macys.com/shop/product/x?ID=123"
+        },
+        {
+            "url": "https://shop.example.co.uk/products/tee",
+            "ok": true,
+            "normalised": "https://shop.example.co.uk/products/tee"
+        },
+        {
+            "url": "https://www.allbirds.com/products/mens-tree-runners",
+            "ok": true,
+            "normalised": "https://www.allbirds.com/products/mens-tree-runners"
+        },
+        {
+            "url": "https://a.myshopify.com/products/x",
+            "ok": true,
+            "normalised": "https://a.myshopify.com/products/x"
+        },
+        {
+            "url": "https://münchen.de/produkt/1",
+            "ok": true,
+            "normalised": "https://xn--mnchen-3ya.de/produkt/1"
+        },
+        {
+            "url": "https://www.coach.com:443/products/x",
+            "ok": true,
+            "normalised": "https://www.coach.com/products/x"
+        },
+        {
+            "url": "https://WWW.Nike.COM/t/air-max",
+            "ok": true,
+            "normalised": "https://www.nike.com/t/air-max"
+        },
+        {
+            "url": "https://www.zara.com/bags/tote-123",
+            "ok": true,
+            "normalised": "https://www.zara.com/bags/tote-123"
+        },
+        {
+            "url": "https://toys.example.com/products/cart-wheel-toy",
+            "ok": true,
+            "normalised": "https://toys.example.com/products/cart-wheel-toy"
+        },
+        {
+            "url": "https://www.amazon.com/dp/B0C1234567#reviews",
+            "ok": true,
+            "normalised": "https://www.amazon.com/dp/B0C1234567#reviews"
+        },
+        {
+            "url": "https://www.gov.uk.example.com/item/1",
+            "ok": true,
+            "normalised": "https://www.gov.uk.example.com/item/1"
+        },
+        {
+            "url": "https://bank.example.com/products/piggy",
+            "ok": true,
+            "normalised": "https://bank.example.com/products/piggy"
+        },
+        {
+            "url": "https://www.governor.com/x",
+            "ok": true,
+            "normalised": "https://www.governor.com/x"
+        },
+        {
+            "url": "https://www.accounts-shop.com/accountability-mug",
+            "ok": true,
+            "normalised": "https://www.accounts-shop.com/accountability-mug"
+        },
+        {
+            "url": "https://www.bagshop.com/bags/leather-bag-12",
+            "ok": true,
+            "normalised": "https://www.bagshop.com/bags/leather-bag-12"
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample",
+            "ok": true,
+            "normalised": "https://erp.trakly.info/extension/sample"
+        },
+        {
+            "url": "",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "not a url",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "//www.sephora.com/x",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "http://www.sephora.com/product/x",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "ftp://example.com/x",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "javascript:alert(1)",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "data:text/html,<b>hi</b>",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "file:///etc/passwd",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "chrome://extensions",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "https://localhost./",
+            "ok": false,
+            "reason": "trailing_dot"
+        },
+        {
+            "url": "https://nas.home.arpa./",
+            "ok": false,
+            "reason": "trailing_dot"
+        },
+        {
+            "url": "https://mail.google.com./",
+            "ok": false,
+            "reason": "trailing_dot"
+        },
+        {
+            "url": "https://erp.trakly.info./extension/sample",
+            "ok": false,
+            "reason": "trailing_dot"
+        },
+        {
+            "url": "https://www.sephora.com./product/x",
+            "ok": false,
+            "reason": "trailing_dot"
+        },
+        {
+            "url": "https://user:secret@www.sephora.com/",
+            "ok": false,
+            "reason": "credentials"
+        },
+        {
+            "url": "https://user@www.sephora.com/",
+            "ok": false,
+            "reason": "credentials"
+        },
+        {
+            "url": "https://www.sephora.com:8443/x",
+            "ok": false,
+            "reason": "port"
+        },
+        {
+            "url": "https://localhost:8443/",
+            "ok": false,
+            "reason": "port"
+        },
+        {
+            "url": "https://shop.example.com:80/x",
+            "ok": false,
+            "reason": "port"
+        },
+        {
+            "url": "https://192.168.1.1/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://10.0.0.1/admin",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://127.0.0.1/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://2130706433/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://0x7f.1/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://[::1]/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://[fe80::1]/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://[::ffff:192.168.0.1]/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://localhost/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://intranet/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://nas.local/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://app.localhost/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://db.localdomain/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://x.internal/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://wiki.intranet/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://router.lan/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://router.home/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://printer.home.arpa/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://intranet.corp/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://x.private/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://1.168.192.in-addr.arpa/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://something.test/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://site.example/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://shop.invalid/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://abcdefghijklmnop.onion/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://mail.google.com/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://accounts.google.com/signin",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://docs.google.com/document/d/1",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://login.microsoftonline.com/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://outlook.office365.com/mail/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://web.whatsapp.com/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://web.telegram.org/k/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://www.icloud.com/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://addons.mozilla.org/en-US/firefox/addon/trakly/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://chromewebstore.google.com/detail/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://erp.trakly.info/app/orders/create",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://trakly.info/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://evil.trakly.info/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample?x=1",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://trakly.info/extension/sample",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://www.shaparak.ir/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://bpm.shaparak.ir/pgwchannel/startpay.mellat",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://www.irs.gov/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://my.gov.ir/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://www.army.mil/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://login.example.bank/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://127.0.0.1.nip.io/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://10.0.0.1.sslip.io/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://lvh.me/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://x.localtest.me/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.vcap.me/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://b.traefik.me/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://c.xip.io/",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://www.sephora.com/account",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.sephora.com/my-account/orders",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.sephora.com/myaccount",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/wishlist",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/wish-list/123",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/cart",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/bag",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/basket?x=1",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/checkout/shipping",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/profile",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/sign-in",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/signin",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/login",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/register",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/customer/account/login",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/order-history",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/us/orders/12345",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/favorites",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/favourites",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/saved",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://www.coach.com/ACCOUNT/",
+            "ok": false,
+            "reason": "personal"
+        },
+        {
+            "url": "https://accounts.google.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://mail.google.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://myaccount.google.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://drive.google.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://docs.google.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://login.live.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://outlook.live.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://outlook.office.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://outlook.office365.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://login.microsoftonline.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://appleid.apple.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://icloud.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://www.icloud.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://web.whatsapp.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://web.telegram.org/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://accounts.firefox.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://addons.mozilla.org/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://chromewebstore.google.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://chrome.google.com/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.trakly.info/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.trakly.info/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.shaparak.ir/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.shaparak.ir/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.gov/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.gov/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.gov.ir/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.gov.ir/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.mil/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.mil/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.bank/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.bank/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.nip.io/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.nip.io/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.sslip.io/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.sslip.io/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.xip.io/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.xip.io/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.localtest.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.localtest.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.lvh.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.lvh.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.vcap.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.vcap.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://shop.traefik.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://a.b.traefik.me/x",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://www.sephora.com/product/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "ok": true,
+            "normalised": "https://www.sephora.com/product/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+            "url": "https://www.sephora.com/product/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "ok": false,
+            "reason": "too_long"
+        },
+        {
+            "url": "https://www.sephora.com/product/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            x",
+            "ok": false,
+            "reason": "too_long"
+        },
+        {
+            "url": "http://127.0.0.1:8000/dev/shop/product-group",
+            "ok": true,
+            "normalised": "http://127.0.0.1:8000/dev/shop/product-group",
+            "dev": true
+        },
+        {
+            "url": "http://127.0.0.1:8000/dev/shop/img/1.jpg",
+            "ok": true,
+            "normalised": "http://127.0.0.1:8000/dev/shop/img/1.jpg",
+            "dev": true
+        },
+        {
+            "url": "http://127.0.0.1:8000/dev/shop/products/tee.js",
+            "ok": true,
+            "normalised": "http://127.0.0.1:8000/dev/shop/products/tee.js",
+            "dev": true
+        },
+        {
+            "url": "http://localhost:8000/extension/sample",
+            "ok": true,
+            "normalised": "http://localhost:8000/extension/sample",
+            "dev": true
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample",
+            "ok": true,
+            "normalised": "https://erp.trakly.info/extension/sample",
+            "dev": true
+        },
+        {
+            "url": "https://www.sephora.com/product/x",
+            "ok": true,
+            "normalised": "https://www.sephora.com/product/x",
+            "dev": true
+        },
+        {
+            "url": "http://127.0.0.1:8000/dev/shop/wishlist",
+            "ok": false,
+            "reason": "personal",
+            "dev": true
+        },
+        {
+            "url": "http://localhost:8000/app/orders/create",
+            "ok": false,
+            "reason": "reserved",
+            "dev": true
+        },
+        {
+            "url": "http://127.0.0.1:8000/extension/sample",
+            "ok": true,
+            "normalised": "http://127.0.0.1:8000/extension/sample",
+            "dev": true
+        },
+        {
+            "url": "http://user:pw@127.0.0.1:8000/dev/shop/x",
+            "ok": false,
+            "reason": "scheme",
+            "dev": true
+        },
+        {
+            "url": "http://127.0.0.1:8001/dev/shop/x",
+            "ok": false,
+            "reason": "scheme",
+            "dev": true
+        },
+        {
+            "url": "http://www.sephora.com/product/x",
+            "ok": false,
+            "reason": "scheme",
+            "dev": true
+        },
+        {
+            "url": "http://127.0.0.1:8000/dev/shop/product-group",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "http://localhost:8000/extension/sample",
+            "ok": false,
+            "reason": "scheme"
+        },
+        {
+            "url": "https://www.example-shop.com/search/p?attrs=size|M&color=red|blue",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/search/p?attrs=size|M&color=red|blue"
+        },
+        {
+            "url": "https://www.example-shop.com/p/a|b",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/a|b"
+        },
+        {
+            "url": "https://www.example-shop.com/c/dresses?filter[size]=M&filter[color]=red",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/c/dresses?filter[size]=M&filter[color]=red"
+        },
+        {
+            "url": "https://www.example-shop.com/p/linen shirt",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/linen%20shirt"
+        },
+        {
+            "url": "https://www.example-shop.com/p/x?q=1 2",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/x?q=1%202"
+        },
+        {
+            "url": "https://www.example-shop.com/product/کیف-چرمی?رنگ=قهوه ای",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/product/%DA%A9%DB%8C%D9%81-%DA%86%D8%B1%D9%85%DB%8C?%D8%B1%D9%86%DA%AF=%D9%82%D9%87%D9%88%D9%87%20%D8%A7%DB%8C"
+        },
+        {
+            "url": "https://www.example-shop.com/p/100%-cotton?off=50%",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/100%-cotton?off=50%"
+        },
+        {
+            "url": "https://www.example-shop.com/p/x%zz",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/x%zz"
+        },
+        {
+            "url": "https://www.example-shop.com/p/%E2%9C%93",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/%E2%9C%93"
+        },
+        {
+            "url": "https://www.example-shop.com/p/x?q=a^b",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/x?q=a^b"
+        },
+        {
+            "url": "https://www.example-shop.com/p/{x}?q={y}#frag ment",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/%7Bx%7D?q={y}#frag%20ment"
+        },
+        {
+            "url": "https://www.example-shop.com/p/\"quoted\"?q='s'&r=<a>",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/%22quoted%22?q=%27s%27&r=%3Ca%3E"
+        },
+        {
+            "url": "https://www.example-shop.com/p/x?a=`b`",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/p/x?a=`b`"
+        },
+        {
+            "url": "https://www.example-shop.com\\products\\tee",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/products/tee"
+        },
+        {
+            "url": "https://www.example-shop.com/pro\tducts/te\ne",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/products/tee"
+        },
+        {
+            "url": "  https://www.example-shop.com/products/tee  ",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/products/tee"
+        },
+        {
+            "url": "HTTPS://WWW.EXAMPLE-SHOP.COM/Products/Tee",
+            "ok": true,
+            "normalised": "https://www.example-shop.com/Products/Tee"
+        },
+        {
+            "url": "https://例え.jp/商品",
+            "ok": true,
+            "normalised": "https://xn--r8jz45g.jp/%E5%95%86%E5%93%81"
+        },
+        {
+            "url": "https://1.2.3.4.5/",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "https://1.2.3.4./",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://0177.0.0.1/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://0x7f000001/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://127.1/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://999.0.0.1/",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "https://1.2.3.08/",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "https://shop.123/",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "https://[nope]/",
+            "ok": false,
+            "reason": "invalid"
+        },
+        {
+            "url": "https://[2001:db8::1]/x",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://ERP.TRAKLY.INFO/extension/sample",
+            "ok": true,
+            "normalised": "https://erp.trakly.info/extension/sample"
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample?review=1",
+            "ok": false,
+            "reason": "denied"
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample?review=1",
+            "ok": true,
+            "normalised": "https://erp.trakly.info/extension/sample?review=1",
+            "app": true
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample",
+            "ok": true,
+            "normalised": "https://erp.trakly.info/extension/sample",
+            "app": true
+        },
+        {
+            "url": "https://erp.trakly.info/extension/sample?review=2",
+            "ok": false,
+            "reason": "denied",
+            "app": true
+        },
+        {
+            "url": "https://erp.trakly.info/app/orders/create",
+            "ok": false,
+            "reason": "denied",
+            "app": true
+        },
+        {
+            "url": "https://www.sephora.com/product/soft-pinch-P97989778?skuId=2518959",
+            "ok": true,
+            "normalised": "https://www.sephora.com/product/soft-pinch-P97989778?skuId=2518959",
+            "app": true
+        },
+        {
+            "url": "http://10.0.2.2:8000/dev/shop/product-group",
+            "ok": true,
+            "normalised": "http://10.0.2.2:8000/dev/shop/product-group",
+            "dev": true
+        },
+        {
+            "url": "http://10.0.2.2:8000/dev/shop/img/1.jpg",
+            "ok": true,
+            "normalised": "http://10.0.2.2:8000/dev/shop/img/1.jpg",
+            "dev": true
+        },
+        {
+            "url": "http://localhost:8000/dev/shop/product-group",
+            "ok": true,
+            "normalised": "http://localhost:8000/dev/shop/product-group",
+            "dev": true
+        },
+        {
+            "url": "http://10.0.2.2:8000/extension/sample",
+            "ok": true,
+            "normalised": "http://10.0.2.2:8000/extension/sample",
+            "dev": true
+        },
+        {
+            "url": "http://10.0.2.2:8000/app/orders/create",
+            "ok": false,
+            "reason": "reserved",
+            "dev": true
+        },
+        {
+            "url": "http://10.0.2.2:8001/dev/shop/x",
+            "ok": false,
+            "reason": "scheme",
+            "dev": true
+        },
+        {
+            "url": "http://10.0.2.2:8000/dev/shop/cart",
+            "ok": false,
+            "reason": "personal",
+            "dev": true
+        },
+        {
+            "url": "http://127.0.0.1:8000/dev/shop/product-group",
+            "ok": false,
+            "reason": "scheme",
+            "dev": false
+        },
+        {
+            "url": "http://10.0.2.2:8000/dev/shop/product-group",
+            "ok": false,
+            "reason": "scheme",
+            "dev": false
+        },
+        {
+            "url": "http://localhost:8000/dev/shop/product-group",
+            "ok": false,
+            "reason": "scheme",
+            "dev": false
+        },
+        {
+            "url": "http://localhost:8000/extension/sample",
+            "ok": false,
+            "reason": "scheme",
+            "dev": false
+        },
+        {
+            "url": "http://127.0.0.1:8000/extension/sample",
+            "ok": false,
+            "reason": "scheme",
+            "dev": false
+        },
+        {
+            "url": "http://10.0.2.2:8000/extension/sample",
+            "ok": false,
+            "reason": "scheme",
+            "dev": false
+        },
+        {
+            "url": "http://10.0.2.2:8000/dev/shop/product-group",
+            "ok": false,
+            "reason": "scheme",
+            "dev": false,
+            "app": true
+        },
+        {
+            "url": "https://[::ffff:7f00:1]/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://[::]/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://[fc00::1]/x",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://[::ffff:10.0.0.1]/x",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://0x7f.0.0.1/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://017700000001/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://0/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://169.254.169.254/latest/meta-data",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://100.64.0.1/",
+            "ok": false,
+            "reason": "ip"
+        },
+        {
+            "url": "https://LOCALHOST/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://a.b.local/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://shop.lan/",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://nas.home.arpa/x",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://db.internal/x",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://wiki.intranet/x",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://shop.localhost/x",
+            "ok": false,
+            "reason": "reserved"
+        },
+        {
+            "url": "https://www.zara.com:8443/bag-1",
+            "ok": false,
+            "reason": "port"
+        },
+        {
+            "url": "https://www.zara.com/bag-1",
+            "ok": true,
+            "normalised": "https://www.zara.com/bag-1",
+            "dev": false
+        }
+    ]
+}
