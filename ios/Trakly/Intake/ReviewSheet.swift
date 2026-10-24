@@ -21,7 +21,8 @@ final class ReviewState: ObservableObject {
         options = VariantMatcher.options(product)
         let preselected = VariantMatcher.preselected(product)
         chosen = preselected
-        title = (product.string("title") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        // Cut like a typed title from the start (the web input keeps at most 190 characters, fixer 2026-10-24).
+        title = IntakeChoices.capTitle(product.string("title") ?? "")
         selectedImage = VariantMatcher.images(product, preselected).first
     }
 
@@ -31,6 +32,8 @@ final class ReviewState: ObservableObject {
     var price: String? { VariantMatcher.price(product, chosen) }
     var comboUnavailable: Bool { VariantMatcher.comboUnavailable(product, chosen) }
     var missing: [String] { VariantMatcher.missingLabels(product, chosen) }
+    /// «شرح کالا» is empty: the buttons that add wait for it, as in the web dialog (`title.trim() === ''`).
+    var titleMissing: Bool { title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     func choose(_ name: String, _ value: String) {
         if chosen[name] == value {
@@ -188,8 +191,9 @@ struct ReviewSheet: View {
                 .background(Color(Theme.surface2), in: RoundedRectangle(cornerRadius: Theme.controlRadius, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: Theme.controlRadius, style: .continuous).stroke(Color(Theme.line), lineWidth: 1))
                 .onChange(of: state.title) {
+                    // At most 190 UTF-16 units, as the web input's slice(0, 190) (a character is never split).
                     if state.title.utf16.count > BridgeMessages.Limit.choiceTitleChars {
-                        state.title = String(state.title.prefix(BridgeMessages.Limit.choiceTitleChars))
+                        state.title = IntakeChoices.capTitle(state.title)
                     }
                 }
                 .accessibilityIdentifier("review.title")
@@ -266,7 +270,7 @@ struct ReviewSheet: View {
             }
             .buttonStyle(.bordered)
             .disabled(state.quantity <= BridgeMessages.Limit.quantityMin)
-            .accessibilityLabel(L.has("qty_less") ? L.s("qty_less") : "-")
+            .accessibilityLabel(L.s("qty_less"))
             Text(Fa.number(state.quantity))
                 .font(Theme.swiftUIFont(18, bold: true))
                 .frame(minWidth: 44)
@@ -280,7 +284,7 @@ struct ReviewSheet: View {
             }
             .buttonStyle(.bordered)
             .disabled(state.quantity >= BridgeMessages.Limit.quantityMax)
-            .accessibilityLabel(L.has("qty_more") ? L.s("qty_more") : "+")
+            .accessibilityLabel(L.s("qty_more"))
         }
         .accessibilityElement(children: .contain)
     }
@@ -305,7 +309,7 @@ struct ReviewSheet: View {
                 }
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(state.saving)
+            .disabled(state.saving || state.titleMissing)
             .accessibilityIdentifier("review.add")
             // Side by side when both fit on one line, else one under the other (large text, a small phone).
             ViewThatFits(in: .horizontal) {
@@ -331,7 +335,7 @@ struct ReviewSheet: View {
             }
             .buttonStyle(SecondaryButtonStyle())
             .lineLimit(1)
-            .disabled(state.saving)
+            .disabled(state.saving || state.titleMissing)
             .accessibilityIdentifier("review.next")
         }
         Button(L.s("review_cancel"), action: actions.cancel)

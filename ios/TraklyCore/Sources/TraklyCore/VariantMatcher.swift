@@ -111,7 +111,21 @@ public enum VariantMatcher {
 /// The one mapping of the web (`importResultOf()`, §B6), here only to build the `IntakeChoice` native returns: native
 /// returns the choice, the web maps it. Pure.
 public enum IntakeChoices {
-    /// An `IntakeChoice` (§B6) for `product`; `title` is trimmed and cut to 190 characters, `quantity` clamped.
+    /// «شرح کالا» as the web takes it (§B6 `IntakeChoice.title`, 1–190 UTF-16 units, like the web input's `slice(0,
+    /// 190)`): cut to 190 units without splitting a character, then trimmed.
+    public static func capTitle(_ text: String) -> String {
+        var trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.utf16.count > BridgeMessages.Limit.choiceTitleChars {
+            trimmed = String(String.UnicodeScalarView(trimmed.unicodeScalars.prefix(BridgeMessages.Limit.choiceTitleChars)))
+            while trimmed.utf16.count > BridgeMessages.Limit.choiceTitleChars { trimmed.removeLast() }
+            trimmed = trimmed.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return trimmed
+    }
+
+    /// An `IntakeChoice` (§B6) for `product`; `title` is trimmed and cut to 190 characters (the product's own title or
+    /// its site when it is empty, cut the same way: fixer 2026-10-24, a long product title used to pass uncut and the
+    /// web refused the choice), `quantity` clamped.
     public static func make(product: JSONObject, chosen: [String: String], title: String, withBrand: Bool, quantity: Int, image: (ref: String, url: String)?, source: String) -> JSONObject {
         var chosenObject = JSONObject()
         for option in VariantMatcher.options(product) {
@@ -119,17 +133,15 @@ public enum IntakeChoices {
                 chosenObject[option.name] = .string(value)
             }
         }
-        var trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.utf16.count > BridgeMessages.Limit.choiceTitleChars {
-            trimmed = String(String.UnicodeScalarView(trimmed.unicodeScalars.prefix(BridgeMessages.Limit.choiceTitleChars)))
-            while trimmed.utf16.count > BridgeMessages.Limit.choiceTitleChars { trimmed.removeLast() }
-            trimmed = trimmed.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = capTitle(title)
+        if trimmed.isEmpty {
+            trimmed = capTitle(product.string("title") ?? "")
         }
         if trimmed.isEmpty {
-            trimmed = product.string("title")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            trimmed = capTitle(product.string("site") ?? "")
         }
         if trimmed.isEmpty {
-            trimmed = product.string("site") ?? "-"
+            trimmed = "-"
         }
         let imageValue: JSONValue = image.map { .object(JSONObject([("ref", .string($0.ref)), ("url", .string($0.url))])) } ?? .null
         return JSONObject([

@@ -69,6 +69,34 @@ final class VariantMatcherTests: XCTestCase {
         XCTAssertEqual(bare.string("title")?.count, 190)
         XCTAssertEqual(bare["quantity"]?.intValue, 1)
     }
+
+    /// Fixer 2026-10-24: an empty «شرح کالا» falls back to the product's title cut to 190 units like a typed one (a
+    /// 230-character title used to pass whole and the web refused the choice), and the cut never splits a character.
+    func testTheFallbackTitleIsCutLikeATypedOne() {
+        var long = tee
+        long["title"] = .string("  " + String(repeating: "پیراهن ", count: 33) + "  ")
+        XCTAssertGreaterThan(long.string("title")!.utf16.count, 230)
+        let choice = IntakeChoices.make(product: long, chosen: [:], title: "   ", withBrand: false, quantity: 1, image: nil, source: "server")
+        XCTAssertTrue(BridgeMessages.isIntakeChoice(.object(choice)))
+        let title = choice.string("title") ?? ""
+        XCTAssertLessThanOrEqual(title.utf16.count, 190)
+        XCTAssertFalse(title.isEmpty)
+        XCTAssertEqual(title, title.trimmingCharacters(in: .whitespacesAndNewlines))
+        XCTAssertTrue(title.hasPrefix("پیراهن"))
+
+        // A character outside the BMP (two UTF-16 units) at the edge goes whole.
+        let edge = String(repeating: "a", count: 189) + "\u{1F600}" + "b"
+        XCTAssertEqual(IntakeChoices.capTitle(edge), String(repeating: "a", count: 189))
+        XCTAssertEqual(IntakeChoices.capTitle("  شرح  "), "شرح")
+        XCTAssertEqual(IntakeChoices.capTitle(" \n "), "")
+
+        var untitled = tee
+        untitled["title"] = .null
+        untitled["site"] = .string("shop.example.com")
+        let fromSite = IntakeChoices.make(product: untitled, chosen: [:], title: "", withBrand: false, quantity: 1, image: nil, source: "server")
+        XCTAssertEqual(fromSite.string("title"), "shop.example.com")
+        XCTAssertTrue(BridgeMessages.isIntakeChoice(.object(fromSite)))
+    }
 }
 
 final class BasketTests: XCTestCase {

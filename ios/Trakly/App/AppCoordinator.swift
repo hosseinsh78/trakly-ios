@@ -74,7 +74,7 @@ final class AppCoordinator: NSObject {
             MainActor.assumeIsolated { self?.textSizeChanged() }
         }
         _ = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.intake.memoryWarning() }
+            MainActor.assumeIsolated { self?.memoryWarning() }
         }
     }
 
@@ -212,6 +212,9 @@ final class AppCoordinator: NSObject {
             }
             if fresh {
                 panel.load(pool.restoreUrls.removeValue(forKey: key) ?? AppConfig.origin + Tabs.rootPath(key))
+            } else if !panel.reloadIfGone() {
+                // Its snapshot may have gone with a memory warning: the next push shows the page as it is now.
+                scheduleSnapshot(panel)
             }
             panel.webView.isHidden = false
         }
@@ -390,6 +393,27 @@ final class AppCoordinator: NSObject {
         refreshTimers[id]?.invalidate()
         refreshTimers[id] = nil
         refreshControls[id]?.endRefreshing()
+    }
+
+    // MARK: - memory (§E6, §L5)
+
+    /// `didReceiveMemoryWarningNotification` (fixer 2026-10-24): the S6 thumbnails go, and so do the page snapshots not
+    /// on screen (each is a full-screen image, up to two per stack): the lower hosts of every stack (the selected one
+    /// unless a pop is running), the hosts of the other tabs that no longer hold a WebView, and the snapshots of the
+    /// panels off screen. A host without its image shows the canvas until its page is back.
+    func memoryWarning() {
+        intake.memoryWarning()
+        let selected = selectedStack
+        for stack in stacks.values {
+            if stack === selected && stack.nav.transitionCoordinator != nil { continue }
+            let visible = stack === selected ? stack.top : nil
+            for host in stack.hosts where host !== visible && !host.hasWebView {
+                host.dropSnapshot()
+            }
+        }
+        for panel in pool.all where panel !== selectedPanel && panel !== modalPanel {
+            panel.snapshot = nil
+        }
     }
 
     // MARK: - snapshots (§E3)

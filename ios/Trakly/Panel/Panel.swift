@@ -47,6 +47,9 @@ final class Panel: NSObject {
     var snapshot: UIImage?
     /// The URL to restore when this panel was destroyed (LRU, §A1).
     var lastUrl: String?
+    /// The WebContent process went away while the panel was off screen: it loads again when shown (§E3, fixer
+    /// 2026-10-24; reloading every panel at once brought the memory pressure straight back).
+    private(set) var reloadWhenShown = false
     private var pending: [String: (type: String, timer: Timer?, callback: (JSONObject?) -> Void)] = [:]
     private var observations: [NSKeyValueObservation] = []
     private var pageWait: Timer?
@@ -214,6 +217,37 @@ final class Panel: NSObject {
                 if let image { self?.snapshot = image }
                 completion?()
             }
+        }
+    }
+
+    // MARK: - a WebContent process that went away (§E3)
+
+    /// The page is gone (`webViewWebContentProcessDidTerminate` off screen): nothing is sent to it, no read is asked of
+    /// it (`intake.fetch` takes another panel), and it loads again when shown (`reloadIfGone`).
+    func contentGone() {
+        reloadWhenShown = true
+        greetedDocument = -1
+        ready = false
+        committedOrigin = nil
+        failAllPending()
+    }
+
+    /// Loads the page again after `contentGone`; false when nothing was gone.
+    @discardableResult
+    func reloadIfGone() -> Bool {
+        guard reloadWhenShown, !destroyed else { return false }
+        reloadWhenShown = false
+        reloadNow()
+        return true
+    }
+
+    /// The current URL again (the order form restores its draft, §E3).
+    func reloadNow() {
+        reloadWhenShown = false
+        if let url = currentUrl {
+            load(url)
+        } else {
+            webView.reload()
         }
     }
 

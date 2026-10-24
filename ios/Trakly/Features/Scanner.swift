@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import TraklyCore
 import UIKit
@@ -8,6 +9,10 @@ import VisionKit
 /// `DataScannerViewController` for the requested symbologies (every iOS 17 iPhone has an A12 or newer); when it is not
 /// supported or not available (the Simulator, a denied camera) the sheet says «دوربین این گوشی بارکد را نمی خواند.» and
 /// answers `unavailable` when closed; the first code answers with the success haptic; «لغو» answers `cancelled`.
+///
+/// Fixer, 2026-10-24: a phone that can scan but whose camera access was refused (or is restricted) says
+/// «اجازه دوربین داده نشد؛ از تنظیمات گوشی آن را روشن کنید.» (`camera_denied`) instead, so the user knows where to turn
+/// it back on; the page still gets `unavailable`.
 @MainActor
 final class Scanner: NSObject {
     private var reply: BridgeReply?
@@ -58,6 +63,12 @@ final class Scanner: NSObject {
         DataScannerViewController.isSupported && DataScannerViewController.isAvailable
     }
 
+    /// The copy key of the sheet without a usable scanner: a refused or restricted camera on a phone that can scan is
+    /// `camera_denied`, anything else (the Simulator, a phone without the hardware) `scan_unavailable`.
+    static func unavailableKey(supported: Bool, camera: AVAuthorizationStatus) -> String {
+        supported && (camera == .denied || camera == .restricted) ? "camera_denied" : "scan_unavailable"
+    }
+
     func scan(formats: [String], from presenter: UIViewController?, reply: BridgeReply) {
         guard let presenter else {
             reply.error("unavailable")
@@ -79,7 +90,8 @@ final class Scanner: NSObject {
             scanner.delegate = self
             content = scanner
         } else {
-            content = UIHostingController(rootView: ScannerUnavailable())
+            let key = Scanner.unavailableKey(supported: DataScannerViewController.isSupported, camera: AVCaptureDevice.authorizationStatus(for: .video))
+            content = UIHostingController(rootView: ScannerUnavailable(textKey: key))
             content.view.backgroundColor = Theme.canvas
         }
         content.title = L.s("scan_title")
@@ -135,15 +147,17 @@ extension Scanner: UIAdaptivePresentationControllerDelegate {
     }
 }
 
-/// The scanner's state without a usable camera.
+/// The scanner's state without a usable camera (`scan_unavailable`, or `camera_denied` when access was refused).
 struct ScannerUnavailable: View {
+    var textKey = "scan_unavailable"
+
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "barcode.viewfinder")
                 .font(.system(size: 52, weight: .regular))
                 .foregroundStyle(Color(Theme.ink3))
                 .accessibilityHidden(true)
-            Text(L.s("scan_unavailable"))
+            Text(L.s(textKey))
                 .font(Theme.swiftUIFont(16, bold: true, relativeTo: .headline))
                 .foregroundStyle(Color(Theme.ink))
                 .multilineTextAlignment(.center)

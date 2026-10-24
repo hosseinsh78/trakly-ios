@@ -43,12 +43,37 @@ enum QuickActions {
     }
 }
 
-/// A short message at the bottom of the screen (native texts of the copy only). Shown in the window and drawn above
-/// its other views, so a sheet presented a moment later (S4) does not cover it.
+/// A short message at the bottom of the screen (native texts of the copy only), in a window of its own above the app's
+/// window and every sheet, alert and full-screen modal it presents, and below the cover window (the lock, S7, S8).
+/// Fixer, 2026-10-24: the toast used to be a subview of the app's window, which a sheet's accessibility container kept
+/// out of reach (VoiceOver and the UI tests did not find «شما اجازه ثبت سفارش ندارید.» over S4); the window takes no
+/// touch (they reach the app below) and never becomes key.
 @MainActor
 enum Toast {
+    /// One toast window per scene, made on the first toast.
+    private static var windows: [ObjectIdentifier: ToastWindow] = [:]
+
+    /// How long a toast stays (a Debug UI test may hold it longer, `-TraklyToastMs`, for its screenshot).
+    private static var visibleSeconds: TimeInterval {
+        AppConfig.testArgument("TraklyToastMs").flatMap { Double($0) }.map { $0 / 1000 } ?? 2.4
+    }
+
     static func show(_ text: String, in host: UIView?) {
-        guard let host else { return }
+        guard let scene = ((host as? UIWindow) ?? host?.window)?.windowScene else { return }
+        let window = windows[ObjectIdentifier(scene)] ?? {
+            let made = ToastWindow(windowScene: scene)
+            made.windowLevel = .normal + 1
+            made.backgroundColor = .clear
+            made.isUserInteractionEnabled = false
+            made.accessibilityIdentifier = "toasts"
+            windows[ObjectIdentifier(scene)] = made
+            return made
+        }()
+        window.overrideUserInterfaceStyle = scene.windows.first { !($0 is ToastWindow) && $0.windowLevel == .normal }?.overrideUserInterfaceStyle ?? .unspecified
+        // A new toast replaces the one on screen.
+        for old in window.subviews where old.accessibilityIdentifier == "toast" {
+            old.removeFromSuperview()
+        }
         let label = PaddedLabel()
         label.attributedText = FaText.attributed(text, size: 14, bold: true, color: Theme.onInk)
         label.textAlignment = .center
@@ -59,20 +84,30 @@ enum Toast {
         label.alpha = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         label.accessibilityIdentifier = "toast"
-        label.layer.zPosition = 1000
-        host.addSubview(label)
+        window.addSubview(label)
+        window.isHidden = false
         NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: host.centerXAnchor),
-            label.leadingAnchor.constraint(greaterThanOrEqualTo: host.leadingAnchor, constant: 24),
-            label.bottomAnchor.constraint(equalTo: host.safeAreaLayoutGuide.bottomAnchor, constant: -72),
+            label.centerXAnchor.constraint(equalTo: window.centerXAnchor),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: window.leadingAnchor, constant: 24),
+            label.bottomAnchor.constraint(equalTo: window.safeAreaLayoutGuide.bottomAnchor, constant: -72),
         ])
         UIAccessibility.post(notification: .announcement, argument: text)
         UIView.animate(withDuration: 0.2) { label.alpha = 1 }
-        UIView.animate(withDuration: 0.3, delay: 2.4, options: []) {
+        UIView.animate(withDuration: 0.3, delay: visibleSeconds, options: []) {
             label.alpha = 0
-        } completion: { _ in
+        } completion: { [weak window] _ in
             label.removeFromSuperview()
+            if let window, !window.subviews.contains(where: { $0.accessibilityIdentifier == "toast" }) {
+                window.isHidden = true
+            }
         }
+    }
+}
+
+/// The toast window: drawn above the app, never in the way of a touch.
+final class ToastWindow: UIWindow {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        nil
     }
 }
 

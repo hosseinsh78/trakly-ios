@@ -538,8 +538,8 @@
             }
         });
         on('clear-data', async () => {
-            const reply = await request('shopdata.clear', {}, 120000);
-            status('more-status', reply?.ok ? 'داده سایت ها پاک شد.' : '');
+            // Like the real «بیشتر»: native shows its own «داده سایت ها پاک شد» toast, the page adds nothing.
+            await request('shopdata.clear', {}, 120000);
         });
         on('logout', () => {
             notify('session.ended', {});

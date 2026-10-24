@@ -232,11 +232,13 @@ extension AppCoordinator: PanelEvents {
     }
 
     func panelContentProcessTerminated(_ panel: Panel) {
-        // §E3: the page is reloaded (the order form restores its draft).
-        if let url = panel.currentUrl {
-            panel.load(url)
+        // §E3: the page on screen (the selected tab, the modal, the one WebView of `single`) is reloaded at once (the
+        // order form restores its draft); a tab off screen loads again when it is shown (fixer 2026-10-24: under memory
+        // pressure iOS ends the hidden pages first, and reloading them all at once brought the pressure straight back).
+        if panel === selectedPanel || panel === modalPanel || pool.topology == .single {
+            panel.reloadNow()
         } else {
-            panel.webView.reload()
+            panel.contentGone()
         }
         intake.contentProcessTerminated(panel)
     }

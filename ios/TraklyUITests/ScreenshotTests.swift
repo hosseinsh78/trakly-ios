@@ -57,7 +57,7 @@ final class ScreenshotTests: XCTestCase {
         shot("01-launch", cover, settle: 2)
         cover.terminate()
 
-        let app = launch(["-TraklyFoundHoldMs", "2500"])
+        let app = launch(["-TraklyFoundHoldMs", "2500", "-TraklyToastMs", "6000"])
         let username = app.webViews.textFields.firstMatch
         _ = username.waitForExistence(timeout: 25)
         shot("02-login", app)
@@ -321,9 +321,19 @@ final class ScreenshotTests: XCTestCase {
             return
         }
         trakly.tap()
-        // The extension's card shows for about 1.6 s, then the sheet completes by itself.
-        Thread.sleep(forTimeInterval: 0.9)
-        shot("28-share-sheet", safari, settle: 0)
+        // The extension starts in its own process (a few seconds on a CI Simulator); a Debug build keeps its card 6 s.
+        let card = safari.descendants(matching: .any).matching(NSPredicate(format: "identifier == 'share.message' OR label CONTAINS 'اضافه شد'")).firstMatch
+        let found = card.waitForExistence(timeout: 5)
+        shot("28-share-sheet", safari, settle: found ? 0.3 : 0)
+        if !found {
+            // The card's own elements were not seen in Safari's tree: the shot above shows what was on screen.
+            let tree = XCTAttachment(string: safari.debugDescription)
+            tree.name = "\(environment["TRAKLY_DEVICE"] ?? "device")-\(environment["TRAKLY_APPEARANCE"] ?? "light")-log-share-card.txt"
+            tree.lifetime = .keepAlways
+            add(tree)
+        }
+        // Safari goes, so the next pass does not start with its back link in the status bar.
+        safari.terminate()
     }
 
     /// One pass at a large Dynamic Type size (§L4 "Dynamic Type at a large size once").

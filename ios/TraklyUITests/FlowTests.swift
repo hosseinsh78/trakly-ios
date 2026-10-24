@@ -7,7 +7,8 @@ import XCTest
 /// an error page keeping the tab bar, the offline and update screens, the lock through the fake authenticator, the
 /// scanner's unavailable state, files and print, «پاک کردن داده سایت ها» and the single topology. Fixer, 2026-10-24: the
 /// lock cover above an open order form, the lock without a device passcode, a swipe down on S4, S5 and S6, a merge
-/// into the quick order form, a quick action over S4 in merge mode, and the pages following the system appearance.
+/// into the quick order form, a quick action over S4 in merge mode, the pages following the system appearance, a toast
+/// above S4 and S6 waiting for its title.
 final class FlowTests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -458,7 +459,54 @@ final class FlowTests: XCTestCase {
         let yes = app.alerts.buttons["پاک شود"]
         wait(yes, 10)
         yes.tap()
-        wait(app.staticTexts["toast"].exists ? app.staticTexts["toast"] : app.webViews.staticTexts["داده سایت ها پاک شد."].firstMatch, 20)
+        // Native's own toast (the page shows nothing, like the real «بیشتر»).
+        let toast = app.staticTexts["toast"]
+        wait(toast, 20)
+        XCTAssertEqual(toast.label, "داده سایت ها پاک شد")
+    }
+
+    /// Fixer 2026-10-24: a toast while S4 is up is drawn above the sheet (its own window), so «شما اجازه ثبت سفارش
+    /// ندارید.» is seen and found; S4 stays open under it.
+    func testAToastShowsAboveTheComposer() {
+        let app = launch(["-TraklyToastMs", "6000"])
+        signIn(app)
+        wait(plus(app), 20)
+        plus(app).tap()
+        let link = app.textFields["composer.link"]
+        wait(link, 10)
+        link.tap()
+        link.typeText(StandIn.origin + "/dev/shop/forbidden\n")
+        let toast = app.staticTexts["toast"]
+        wait(toast, 20)
+        XCTAssertEqual(toast.label, "شما اجازه ثبت سفارش ندارید.")
+        XCTAssertTrue(link.exists, "S4 stays open under the toast")
+        wait(app.buttons["composer.retry"], 10)
+    }
+
+    /// Fixer 2026-10-24: S6 waits for «شرح کالا» as the web dialog does (an empty title used to pass and fall back to an
+    /// uncut product title).
+    func testTheReviewWaitsForATitle() {
+        let app = launch()
+        signIn(app)
+        wait(plus(app), 20)
+        plus(app).tap()
+        let link = app.textFields["composer.link"]
+        wait(link, 10)
+        link.tap()
+        link.typeText(StandIn.origin + "/dev/shop/server-tee\n")
+        let add = app.buttons["review.add"]
+        wait(add, 30)
+        let title = app.textFields["review.title"]
+        wait(title, 10)
+        let length = ((title.value as? String) ?? "").count
+        // The Latin title sits at the field's left edge: a tap on the right puts the cursor after its last letter.
+        title.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+        title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: length + 2))
+        XCTAssertFalse(add.isEnabled, "no title, no line")
+        XCTAssertFalse(app.buttons["review.next"].isEnabled)
+        title.typeText("Linen")
+        XCTAssertTrue(add.isEnabled)
+        app.buttons["review.cancel"].tap()
     }
 
     func testTheSingleTopology() {

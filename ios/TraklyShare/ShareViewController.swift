@@ -105,7 +105,8 @@ final class ShareViewController: UIViewController {
         UIAccessibility.post(notification: .announcement, argument: text)
         let notice = UINotificationFeedbackGenerator()
         notice.notificationOccurred(success ? .success : .warning)
-        let delay: UInt64 = success ? 1_600_000_000 : 2_200_000_000
+        // A Debug build (the CI shot over Safari, §L4) keeps the card 6 s: the shot waits for the extension to start.
+        let delay: UInt64 = ShareViewController.devPolicy ? 6_000_000_000 : success ? 1_600_000_000 : 2_200_000_000
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: delay)
             self?.finish()

@@ -1,3 +1,4 @@
+import AVFoundation
 import TraklyCore
 import WebKit
 import XCTest
@@ -45,7 +46,7 @@ final class ConfigTests: XCTestCase {
             "discard_keep_editing", "discard_keep_draft", "discard_delete", "download_failed", "print_title", "print_action",
             "print_share_pdf", "qa_new_order", "qa_quick_order", "qa_orders", "lock_reason", "lock_open", "lock_change_reason",
             "clear_data_title", "clear_data_body", "clear_data_yes", "cancel_dialog", "clear_data_done", "scan_title", "scan_unavailable",
-            "cancel", "close", "retry",
+            "cancel", "close", "retry", "qty_more", "qty_less", "camera_denied",
         ]
         let missing = keys.filter { !L.has($0) }
         XCTAssertEqual(missing, [])
@@ -162,5 +163,81 @@ final class FileTests: XCTestCase {
         Downloads().cleanUp()
         XCTAssertFalse(manager.fileExists(atPath: folder.path))
         XCTAssertTrue(Downloads.folder.path.hasPrefix(manager.temporaryDirectory.path))
+    }
+}
+
+/// Fixer, 2026-10-24 (the iOS review): the denied camera's message, S6's «شرح کالا» rules, the toast window and a page
+/// whose WebContent process went away off screen.
+@MainActor
+final class ReviewFixTests: XCTestCase {
+    func testADeniedCameraOnAPhoneThatCanScanSaysWhereToTurnItOn() {
+        XCTAssertEqual(Scanner.unavailableKey(supported: true, camera: .denied), "camera_denied")
+        XCTAssertEqual(Scanner.unavailableKey(supported: true, camera: .restricted), "camera_denied")
+        XCTAssertEqual(Scanner.unavailableKey(supported: true, camera: .authorized), "scan_unavailable")
+        XCTAssertEqual(Scanner.unavailableKey(supported: true, camera: .notDetermined), "scan_unavailable")
+        // The Simulator and a phone without the hardware: the phone cannot scan, whatever the camera access.
+        XCTAssertEqual(Scanner.unavailableKey(supported: false, camera: .denied), "scan_unavailable")
+        XCTAssertEqual(L.s("camera_denied"), "اجازه دوربین داده نشد؛ از تنظیمات گوشی آن را روشن کنید.")
+    }
+
+    func testTheReviewTitleIsCutAndAnEmptyOneWaits() {
+        let long = String(repeating: "Linen ", count: 45)
+        let product = Json.object(#"{"url":"https://shop.example.com/p/1","site":"shop.example.com","title":"\#(long)","brand":null,"images":[],"price":null,"currency":null,"options":[],"variants":[]}"#)!
+        let state = ReviewState(product: product, line: false)
+        XCTAssertLessThanOrEqual(state.title.utf16.count, BridgeMessages.Limit.choiceTitleChars)
+        XCTAssertFalse(state.titleMissing)
+        state.title = "   "
+        XCTAssertTrue(state.titleMissing, "the buttons that add wait for «شرح کالا», as in the web dialog")
+        state.title = "x"
+        XCTAssertFalse(state.titleMissing)
+    }
+
+    func testAToastIsDrawnInItsOwnWindowAboveTheAppAndTakesNoTouch() throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let main = try XCTUnwrap(scene.windows.first { !($0 is ToastWindow) && $0.windowLevel == .normal })
+        Toast.show(L.s("composer_permission"), in: main)
+        let toasts = try XCTUnwrap(scene.windows.compactMap { $0 as? ToastWindow }.first)
+        XCTAssertFalse(toasts.isHidden)
+        XCTAssertFalse(toasts.isKeyWindow)
+        XCTAssertGreaterThan(toasts.windowLevel.rawValue, main.windowLevel.rawValue)
+        XCTAssertLessThan(toasts.windowLevel.rawValue, (UIWindow.Level.alert + 1).rawValue, "the lock cover stays above a toast")
+        XCTAssertNil(toasts.hitTest(CGPoint(x: 100, y: 100), with: nil), "touches reach the app below")
+        let label = try XCTUnwrap(toasts.subviews.first { $0.accessibilityIdentifier == "toast" } as? UILabel)
+        XCTAssertEqual(label.text, "شما اجازه ثبت سفارش ندارید.")
+        // A second toast replaces the first.
+        Toast.show(L.s("rate"), in: main)
+        XCTAssertEqual(toasts.subviews.filter { $0.accessibilityIdentifier == "toast" }.count, 1)
+    }
+
+    func testAPageGoneOffScreenTakesNoMessageAndLoadsAgainWhenShown() async throws {
+        let hub = BridgeHub()
+        let delegate = RecordingDelegate()
+        hub.delegate = delegate
+        let panel = Panel(key: "orders", hub: hub, events: nil)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.addSubview(panel.webView)
+        panel.webView.frame = window.bounds
+        window.isHidden = false
+        panel.load("http://127.0.0.1:8000/app/__test/bridge")
+        for _ in 0 ..< 100 where !panel.greeted {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        XCTAssertTrue(panel.greeted)
+        XCTAssertFalse(panel.reloadIfGone(), "nothing to reload while the page is there")
+
+        panel.contentGone()
+        XCTAssertFalse(panel.greeted)
+        XCTAssertTrue(panel.reloadWhenShown)
+        XCTAssertFalse(panel.send("appState", JSONObject([("active", .bool(true))]), isModal: false), "nothing is sent to a page that is gone")
+
+        let document = panel.document
+        XCTAssertTrue(panel.reloadIfGone())
+        XCTAssertFalse(panel.reloadWhenShown)
+        for _ in 0 ..< 100 where panel.document == document {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        XCTAssertGreaterThan(panel.document, document, "the page loaded again")
+        XCTAssertFalse(panel.reloadIfGone())
+        panel.destroy()
     }
 }
