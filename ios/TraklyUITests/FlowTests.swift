@@ -56,10 +56,15 @@ final class FlowTests: XCTestCase {
         wait(order, 10)
         order.tap()
         wait(app.webViews.staticTexts["اقلام"].firstMatch, 15)
-        // The interactive pop starts from the right edge in right to left.
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.995, dy: 0.5))
-        start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.2, dy: 0.5)))
-        wait(order, 10)
+        // The interactive pop starts from the right edge in right to left (after the push animation has ended; once more
+        // if the first drag came too early).
+        Thread.sleep(forTimeInterval: 1)
+        for _ in 0 ..< 2 where !order.exists {
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.998, dy: 0.5))
+            start.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)), withVelocity: .default, thenHoldForDuration: 0.1)
+            _ = order.waitForExistence(timeout: 5)
+        }
+        wait(order, 5)
     }
 
     func testTheModalDirtyConfirmKeepsADraft() {
@@ -90,7 +95,8 @@ final class FlowTests: XCTestCase {
     }
 
     func testComposerReaderReviewAndTheOrderForm() {
-        let app = launch(["-TraklyFoundHoldMs", "0"])
+        // The found state held 1.5 s, so the reader is on screen long enough to be seen by the test.
+        let app = launch(["-TraklyFoundHoldMs", "1500"])
         signIn(app)
         wait(plus(app), 20)
         plus(app).tap()

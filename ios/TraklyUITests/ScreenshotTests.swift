@@ -176,7 +176,7 @@ final class ScreenshotTests: XCTestCase {
         Thread.sleep(forTimeInterval: 1)
         shot("20-s4-merge", app)
         if app.buttons["composer.close"].exists { app.buttons["composer.close"].tap() }
-        if app.buttons["نگه داشتن"].waitForExistence(timeout: 3) { app.buttons["نگه داشتن"].tap() }
+        tapWhenReady(app.alerts.buttons["نگه داشتن"], 3)
         if close.waitForExistence(timeout: 5) {
             close.tap()
             if app.buttons["نگه داشتن پیش نویس"].waitForExistence(timeout: 5) { app.buttons["نگه داشتن پیش نویس"].tap() }
@@ -187,7 +187,7 @@ final class ScreenshotTests: XCTestCase {
         _ = app.buttons["composer.draft"].waitForExistence(timeout: 10)
         shot("09-s4-draft", app)
         if app.buttons["composer.close"].exists { app.buttons["composer.close"].tap() }
-        if app.buttons["حذف"].waitForExistence(timeout: 3) { app.buttons["حذف"].tap() }
+        tapWhenReady(app.alerts.buttons["حذف"], 3)
 
         // The scanner without a camera.
         let product = app.webViews.links["محصول تازه"]

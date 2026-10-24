@@ -207,7 +207,8 @@ struct ReviewSheet: View {
                 }
             }
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 8)], alignment: .leading, spacing: 8) {
+                // Columns as wide as the longest value needs (a colour name is not cut like a size is not stretched).
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: chipWidth(option)), spacing: 8)], alignment: .leading, spacing: 8) {
                     ForEach(option.values, id: \.self) { value in
                         valueChip(option, value)
                     }
@@ -218,6 +219,14 @@ struct ReviewSheet: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review.option")
+    }
+
+    /// The narrowest chip column that fits the option's longest value at the current text size (at most the sheet width).
+    private func chipWidth(_ option: VariantMatcher.Option) -> CGFloat {
+        let longest = option.values.max { $0.count < $1.count } ?? ""
+        let font = Theme.font(14, bold: true)
+        let width = (longest as NSString).size(withAttributes: [.font: font]).width + 28
+        return min(max(64, width.rounded(.up)), 320)
     }
 
     private func valueChip(_ option: VariantMatcher.Option, _ value: String) -> some View {

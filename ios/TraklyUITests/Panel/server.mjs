@@ -352,7 +352,7 @@ function errorPage(status) {
     return {
         status,
         type: 'text/html; charset=utf-8',
-        body: `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>صفحه پیدا نشد</title><link rel="stylesheet" href="/panel.css"></head>
+        body: `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>صفحه پیدا نشد</title><link rel="stylesheet" href="/panel.css"><script>if (matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');</script></head>
 <body class="error-page"><main><div class="error-code">${fa(status)}</div><h1>این صفحه پیدا نشد</h1><p>لینکی که باز کردید دیگر وجود ندارد یا جابجا شده است.</p><a class="primary" href="/app">بازگشت به خانه</a></main></body></html>`,
     };
 }
