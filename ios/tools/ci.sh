@@ -153,8 +153,10 @@ case "${1:-}" in
             const from = path.join(dir, item.exportedFileName);
             if (!fs.existsSync(from)) continue;
             const human = item.suggestedHumanReadableName || item.exportedFileName;
-            const name = human.replace(/_\d+_[0-9A-F-]{36}(?=\.png$)/i, "").replace(/[^A-Za-z0-9._-]+/g, "-");
+            const name = human.replace(/_\d+_[0-9A-F-]{36}(?=\.(png|txt)$)/i, "").replace(/[^A-Za-z0-9._-]+/g, "-");
             if (name.endsWith(".png") && !human.startsWith("UI Snapshot")) {
+              fs.renameSync(from, path.join(dir, name));
+            } else if (name.endsWith(".txt") && name.includes("-log-")) {
               fs.renameSync(from, path.join(dir, name));
             } else if (failed && human.startsWith("App UI hierarchy")) {
               fs.renameSync(from, path.join(dir, testName + "-hierarchy.txt"));

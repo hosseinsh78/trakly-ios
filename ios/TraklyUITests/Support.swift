@@ -14,6 +14,23 @@ enum StandIn {
         URLSession.shared.dataTask(with: request) { _, _, _ in done.fulfill() }.resume()
         _ = XCTWaiter.wait(for: [done], timeout: 5)
     }
+
+    private final class Box: @unchecked Sendable {
+        var text = ""
+    }
+
+    /// The stand-in's request log (`/__test/log`): every app request with its session state.
+    static func log() -> String {
+        guard let url = URL(string: origin + "/__test/log") else { return "" }
+        let done = XCTestExpectation(description: "log")
+        let box = Box()
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            box.text = data.map { String(decoding: $0, as: UTF8.self) } ?? ""
+            done.fulfill()
+        }.resume()
+        _ = XCTWaiter.wait(for: [done], timeout: 5)
+        return box.text
+    }
 }
 
 extension XCTestCase {
@@ -38,7 +55,12 @@ extension XCTestCase {
         let found = element.waitForExistence(timeout: timeout)
         if !found {
             // The screen at the failure, kept with the result bundle (ci.sh exports it with the shots).
-            shot("fail-\(name.replacingOccurrences(of: " ", with: "-"))-\(line)", XCUIApplication(), settle: 0)
+            let failure = "fail-\(name.replacingOccurrences(of: " ", with: "-"))-\(line)"
+            shot(failure, XCUIApplication(), settle: 0)
+            let log = XCTAttachment(string: StandIn.log())
+            log.name = "\(environment["TRAKLY_DEVICE"] ?? "device")-\(environment["TRAKLY_APPEARANCE"] ?? "light")-log-\(failure).txt"
+            log.lifetime = .keepAlways
+            add(log)
             XCTFail("not found: \(element)", file: file, line: line)
         }
         return found

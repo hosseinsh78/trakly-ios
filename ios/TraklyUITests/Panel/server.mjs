@@ -29,7 +29,7 @@ const PORT = portIndex > 0 ? Number(process.argv[portIndex + 1]) : 8000;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const USERS = { shop1: 'password' };
 
-const state = { sessions: new Set(), min: 0, down: false, saved: 0, landing: '/app', shares: [] };
+const state = { sessions: new Set(), min: 0, down: false, saved: 0, landing: '/app', shares: [], log: [] };
 
 // ---- products of the fixture shops -----------------------------------------------------------------------------------
 
@@ -471,6 +471,12 @@ const server = http.createServer(async (request, response) => {
     const app = /\bTraklyApp\/\d+\.\d+\.\d+ \(ios; \d+; (?:appstore|dev)\)/.test(request.headers['user-agent'] || '');
     const visit = request.headers['x-trakly-visit'] === '1';
 
+    // The request log a failed UI test attaches (`/__test/log`): what the app asked and whether it was signed in.
+    if (!pathname.startsWith('/__test/') && !pathname.startsWith('/fonts/') && pathname !== '/health') {
+        state.log.push(`${new Date().toISOString().slice(11, 23)} ${request.method} ${pathname}${url.search}${visit ? ' visit' : ''} cookie=${cookieOf(request) ? 'yes' : 'no'} signed=${signedIn(request) ? 'yes' : 'no'}`);
+        if (state.log.length > 300) state.log.splice(0, state.log.length - 300);
+    }
+
     if (state.down && !pathname.startsWith('/__test/') && pathname !== '/health') {
         request.socket.destroy();
         return;
@@ -484,7 +490,11 @@ const server = http.createServer(async (request, response) => {
             state.down = false;
             state.landing = '/app';
             state.shares = [];
+            state.log = [];
             return send(response, { body: 'reset' });
+        }
+        if (pathname === '/__test/log') {
+            return send(response, { body: state.log.join(String.fromCharCode(10)) });
         }
         if (pathname === '/__test/min') {
             state.min = Number(url.searchParams.get('value') || '0');
