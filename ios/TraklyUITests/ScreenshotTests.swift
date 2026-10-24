@@ -287,6 +287,10 @@ final class ScreenshotTests: XCTestCase {
         if !trakly.isHittable {
             safari.collectionViews.firstMatch.swipeLeft()
         }
+        guard trakly.isHittable else {
+            shot("28-share-sheet-missing", safari, settle: 0)
+            return
+        }
         trakly.tap()
         // The extension's card shows for about 1.6 s, then the sheet completes by itself.
         Thread.sleep(forTimeInterval: 0.9)

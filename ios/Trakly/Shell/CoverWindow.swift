@@ -97,7 +97,7 @@ final class CoverRootViewController: UIViewController {
         child.didMove(toParent: self)
         ranks[tag] = rank
         // Above every cover of a lower rank, below the higher ones.
-        for other in children.sorted(by: { rank(of: $0) < rank(of: $1) }) {
+        for other in children.sorted(by: { self.rank(of: $0) < self.rank(of: $1) }) {
             view.bringSubviewToFront(other.view)
         }
         setNeedsStatusBarAppearanceUpdate()
