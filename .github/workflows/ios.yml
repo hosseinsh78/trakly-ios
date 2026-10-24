@@ -71,6 +71,7 @@ jobs:
 
   build:
     name: Build and unit tests (macOS)
+    if: github.event_name == 'push'
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -104,5 +105,135 @@ jobs:
           path: |
             build/logs
             build/results
+          retention-days: 7
+          if-no-files-found: ignore
+
+  plan:
+    name: UI devices
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      any: ${{ steps.plan.outputs.any }}
+    steps:
+      - name: Profiles to matrix
+        id: plan
+        env:
+          PROFILES: ${{ inputs.profiles }}
+          LARGE: ${{ inputs.large_text }}
+        run: |
+          node <<'JS'
+          const fs = require('node:fs');
+          // §L4: iPhone SE (3rd generation) 4.7", iPhone 16 6.1", iPhone 17 Pro Max 6.9" (the App Store size).
+          const DEVICES = {
+              se: { device: 'iPhone SE (3rd generation)', label: 'se' },
+              '16': { device: 'iPhone 16', label: 'iphone16' },
+              '17promax': { device: 'iPhone 17 Pro Max', label: 'iphone17promax' },
+          };
+          const asked = [...new Set((process.env.PROFILES || '').toLowerCase().split(/[\s,]+/).filter(Boolean))].filter((name) => name !== 'none');
+          const unknown = asked.filter((name) => !DEVICES[name]);
+          if (unknown.length > 0) {
+              console.log(`::error::profiles must be some of ${Object.keys(DEVICES).join(', ')} or none (got ${process.env.PROFILES})`);
+              process.exit(1);
+          }
+          // The flows run once (on iPhone 16, else the first device); the large text pass once, on the same device.
+          const flowsOn = asked.includes('16') ? '16' : asked[0];
+          const include = asked.map((name) => ({ ...DEVICES[name], flows: name === flowsOn, large: name === flowsOn && process.env.LARGE === 'true' }));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${JSON.stringify({ include })}\nany=${include.length > 0}\n`);
+          console.log(JSON.stringify(include, null, 2));
+          JS
+
+  ui:
+    name: UI tests and screenshots (${{ matrix.label }})
+    needs: plan
+    if: needs.plan.outputs.any == 'true'
+    runs-on: macos-26
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Xcode, XcodeGen and the build for testing
+        run: |
+          bash ios/tools/ci.sh xcode
+          bash ios/tools/ci.sh xcodegen
+          bash ios/tools/ci.sh build
+
+      - name: Panel stand-in and the Simulator
+        run: |
+          bash ios/tools/ci.sh server
+          UDID="$(bash ios/tools/ci.sh device '${{ matrix.device }}' | tail -1)"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+
+      - name: Flows (light)
+        if: matrix.flows
+        run: bash ios/tools/ci.sh ui "$UDID" light flows ${{ matrix.label }}
+
+      - name: Screenshots (light)
+        if: always()
+        run: bash ios/tools/ci.sh ui "$UDID" light shots ${{ matrix.label }}
+
+      - name: Screenshots (dark)
+        if: always()
+        run: bash ios/tools/ci.sh ui "$UDID" dark shots ${{ matrix.label }}
+
+      - name: Large text (light)
+        if: always() && matrix.large
+        run: bash ios/tools/ci.sh ui "$UDID" light large ${{ matrix.label }}
+
+      - name: Screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-ui-${{ matrix.label }}
+          path: |
+            build/shots
+            build/logs
+          retention-days: 7
+          if-no-files-found: ignore
+
+  ios17:
+    name: iOS 17 runtime
+    if: github.event_name == 'workflow_dispatch' && inputs.ios17
+    runs-on: macos-26
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Xcode, XcodeGen and the build for testing
+        run: |
+          bash ios/tools/ci.sh xcode
+          bash ios/tools/ci.sh xcodegen
+          bash ios/tools/ci.sh build
+
+      - name: The iOS 17.5 runtime (about 8 GB)
+        run: |
+          xcodebuild -downloadPlatform iOS -buildVersion 17.5
+          xcrun simctl list runtimes
+
+      - name: Launch, composer to reader, site data (iOS 17.5)
+        run: |
+          bash ios/tools/ci.sh server
+          RUNTIME="$(xcrun simctl list runtimes -j | node -e 'const d=JSON.parse(require("fs").readFileSync(0,"utf8"));const r=d.runtimes.find((x)=>x.platform==="iOS"&&x.version.startsWith("17."));process.stdout.write(r?r.identifier:"")')"
+          UDID="$(bash ios/tools/ci.sh device 'iPhone 15' "$RUNTIME" | tail -1)"
+          bash ios/tools/ci.sh ui "$UDID" light ios17 ios17
+
+      - name: Logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-ui-ios17
+          path: |
+            build/shots
+            build/logs
           retention-days: 7
           if-no-files-found: ignore

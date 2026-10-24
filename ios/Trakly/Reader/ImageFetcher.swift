@@ -130,7 +130,7 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
     // MARK: - URLSessionDataDelegate
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void) {
-        guard let job = jobFor(dataTask), let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode), response.expectedContentLength <= Int64(Limits.imageBytes) else {
+        guard jobFor(dataTask) != nil, let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode), response.expectedContentLength <= Int64(Limits.imageBytes) else {
             jobFor(dataTask)?.refused = true
             completionHandler(.cancel)
             return

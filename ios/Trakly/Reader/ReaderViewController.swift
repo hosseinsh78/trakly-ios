@@ -224,9 +224,7 @@ final class ReaderViewController: UIViewController {
 
     private func style(_ button: UIButton, primary: Bool, title: String) {
         var configuration = primary ? UIButton.Configuration.filled() : UIButton.Configuration.bordered()
-        var attributes = AttributeContainer()
-        attributes.font = Theme.font(16, bold: true, style: .headline)
-        configuration.attributedTitle = AttributedString(title, attributes: attributes)
+        configuration.attributedTitle = AttributedString(NSAttributedString(string: title, attributes: [.font: Theme.font(16, bold: true, style: .headline)]))
         configuration.cornerStyle = .large
         configuration.baseBackgroundColor = primary ? Theme.brand : Theme.surface2
         configuration.baseForegroundColor = primary ? .white : Theme.ink

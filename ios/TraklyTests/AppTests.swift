@@ -131,11 +131,13 @@ final class BridgeGuardTests: XCTestCase {
 final class ImageFetchTests: XCTestCase {
     func testAFixtureImageIsFetchedReencodedAndCapped() async throws {
         let fetcher = ImageFetcher()
-        let data = try XCTUnwrap(await fetcher.fetch("http://127.0.0.1:8000/dev/shop/img/1.png", dev: true))
+        let fetched = await fetcher.fetch("http://127.0.0.1:8000/dev/shop/img/1.png", dev: true)
+        let data = try XCTUnwrap(fetched)
         let image = try XCTUnwrap(UIImage(data: data))
         XCTAssertEqual(image.size.width, 600)
         XCTAssertEqual(Array(data.prefix(2)), [0xFF, 0xD8], "re-encoded as JPEG")
-        let small = try XCTUnwrap(await fetcher.fetch("http://127.0.0.1:8000/dev/shop/img/2.png", dev: true, maxPixels: 120))
+        let thumbnail = await fetcher.fetch("http://127.0.0.1:8000/dev/shop/img/2.png", dev: true, maxPixels: 120)
+        let small = try XCTUnwrap(thumbnail)
         XCTAssertLessThanOrEqual(try XCTUnwrap(UIImage(data: small)).size.width, 120)
     }
 

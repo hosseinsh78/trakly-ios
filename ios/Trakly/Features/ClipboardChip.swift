@@ -11,10 +11,11 @@ enum ClipboardChip {
             completion(false)
             return
         }
-        board.detectPatterns(for: [.probableWebURL]) { result in
+        let link: PartialKeyPath<UIPasteboard.DetectedValues> = \UIPasteboard.DetectedValues.probableWebURL
+        board.detectPatterns(for: [link]) { result in
             let found: Bool
             switch result {
-            case let .success(patterns): found = patterns.contains(.probableWebURL)
+            case let .success(patterns): found = patterns.contains(link)
             case .failure: found = false
             }
             Task { @MainActor in

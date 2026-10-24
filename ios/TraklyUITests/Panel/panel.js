@@ -23,6 +23,7 @@
     let titleVisible = true;
     let readySent = false;
     let lastPage = '';
+    let lastTabs = '';
     const pending = new Map();
 
     function readMeta() {
@@ -124,7 +125,11 @@
         }
         if (meta.context !== 'auth' && meta.context !== 'standalone' && meta.tabs) {
             const at = draftAt();
-            notify('tabs', { ...meta.tabs, draft: at ? { at } : null });
+            const tabs = JSON.stringify({ ...meta.tabs, draft: at ? { at } : null });
+            if (force || tabs !== lastTabs) {
+                lastTabs = tabs;
+                notify('tabs', JSON.parse(tabs));
+            }
         }
         if (!readySent) {
             readySent = true;
@@ -132,20 +137,26 @@
         }
     }
 
-    function watchTitle() {
+    /** The page's h1 in view or not (the native bar shows the title only while it is not, §B4.1 `title`). */
+    function headingVisible() {
         const heading = document.querySelector('[data-page-title]');
-        titleVisible = true;
-        if (!heading || !('IntersectionObserver' in window)) return;
-        const observer = new IntersectionObserver((entries) => {
-            const visible = entries.some((entry) => entry.isIntersecting);
-            if (visible !== titleVisible) {
-                titleVisible = visible;
-                notify('title', { visible });
-                publish(false);
-            }
-        });
-        observer.observe(heading);
+        if (!heading) return false;
+        const box = heading.getBoundingClientRect();
+        return box.bottom > 4 && box.top < window.innerHeight;
     }
+
+    function watchTitle() {
+        titleVisible = headingVisible();
+    }
+
+    window.addEventListener('scroll', () => {
+        const visible = headingVisible();
+        if (visible !== titleVisible) {
+            titleVisible = visible;
+            notify('title', { visible });
+            publish(false);
+        }
+    }, { passive: true });
 
     function applyTheme(resolved) {
         root.classList.toggle('dark', resolved === 'dark');
