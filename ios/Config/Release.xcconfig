@@ -1,0 +1,12 @@
+// Release (the App Store build of ios-release.yml, §E11): one origin, the store word, manual signing with the
+// distribution certificate and the two App Store profiles the owner makes (§O6). The workflow passes DEVELOPMENT_TEAM.
+#include "Base.xcconfig"
+
+TRAKLY_ORIGIN = https:/$()/erp.trakly.info
+TRAKLY_STORE = appstore
+TRAKLY_LOCAL_NETWORKING = NO
+
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Apple Distribution
+TRAKLY_APP_PROFILE = Trakly App Store
+TRAKLY_SHARE_PROFILE = Trakly Share App Store

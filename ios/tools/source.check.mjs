@@ -1,15 +1,29 @@
 /**
- * Source checks of the iOS app (docs/specs/phase10-apps-and-stores.md §0.2, §E10). **Minimal W0 version:** it checks
- * only the generated reader asset `ios/Trakly/Resources/trakly-reader.js` (§E5: run in a private `WKContentWorld`):
- * present, starting with the generator's header, free of the asset's banned constructs, following the writing rule,
- * and byte-identical to a fresh `extension/build.mjs` reader build. It passes while `ios/Trakly/` is absent. W5 extends
- * this file with the rest of §E10 (banned APIs, the release origin, the privacy manifests, the usage descriptions, the
- * AppIcon, the generated-file headers, the store, VPN and platform words).
+ * Source checks of the iOS app (docs/specs/phase10-apps-and-stores.md §0.2, §E10). Runs on Windows, in the private
+ * repository's checks.yml and in the public mirror's ios.yml (plain Node, no Xcode). From the repo root:
+ * `node ios/tools/source.check.mjs` (exit code 1 on any failure).
  *
- * Runs on Windows and on Linux CI (plain Node, no Xcode). Run from the repo root: `node ios/tools/source.check.mjs`
- * (exit code 1 on any failure).
+ * - The generated reader asset `ios/Trakly/Resources/trakly-reader.js`: present, the generator's header, the asset's
+ *   own rules, the writing rule and byte-identical to a fresh `extension/build.mjs` reader build (where the extension
+ *   sources exist: the public mirror has none, so it checks the header and the writing rule only).
+ * - Banned APIs (§E10): `customUserAgent` anywhere; `applicationNameForUserAgent` and `addScriptMessageHandler` outside
+ *   `Panel/PanelWebViewFactory.swift`; `WKAppBoundDomains`, `UIDesignRequiresCompatibility`, `nonPersistent(`; in
+ *   `Reader/` the panel's default data store, `evaluateJavaScript`, any user script or message handler;
+ *   `UIApplication.shared.open` outside `ExternalLinks.swift` and `UpdateRequiredView.swift`; `_WK…` and selector
+ *   lookups (private API); `openURL` in `TraklyShare/`; `URL(string:` and `URLComponents(` in TraklyCore's `Policy`,
+ *   `NavigationPolicy` and `LinkText`; `systemUptime`, `mach_absolute_time` and `volumeAvailableCapacity` without their
+ *   reason codes in both privacy manifests; an `#available` branch below iOS 17.
+ * - The build: `IPHONEOS_DEPLOYMENT_TARGET = 17.0`, `SWIFT_VERSION = 5.0`, targeted strict concurrency, exactly one
+ *   origin in `Release.xcconfig` (`https://erp.trakly.info`), the dev policy flag only in `Debug.xcconfig`, the release
+ *   marketing version equal to `ios/version.properties`, `ITSAppUsesNonExemptEncryption`, the three usage descriptions
+ *   (in project.yml and in the generated `InfoPlist.strings`), the associated domains and the App Group, both
+ *   `PrivacyInfo.xcprivacy` files with `NSPrivacyTracking` false and the reasons the code needs, a 1024 × 1024 AppIcon
+ *   without an alpha channel, the generator's headers on the generated copy and colour sets.
+ * - The bridge shim: the release origin literal once, the origin check, the frozen object, no `eval`.
+ * - Words: no store, VPN or other platform word (shared/app/build.mjs `BANNED`, `BANNED_FOR.ios`) in Swift string
+ *   literals and `.strings` values; the writing rule (no half-space, no diacritic mark) in every iOS text file.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -17,57 +31,276 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const IOS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = path.resolve(IOS, '..');
 const ASSET = path.join(IOS, 'Trakly', 'Resources', 'trakly-reader.js');
+const RELEASE_ORIGIN = 'https://erp.trakly.info';
 
-/** The owner's writing rule (`App\Support\PersianWriting`), written with escapes. */
-const FORBIDDEN = /[\u200C\u064B-\u065F\u0670\u06C0\u0623\u0625\u0624]/u;
+/** The owner's writing rule (`App\Support\PersianWriting`): the half-space and the diacritic marks. */
+const FORBIDDEN = /[\u{200C}\u{064B}-\u{065F}\u{0670}\u{0654}\u{06C0}\u{0623}\u{0625}\u{0624}]/u;
 
 const problems = [];
 const notes = [];
+let checks = 0;
 
-if (!existsSync(path.join(IOS, 'Trakly'))) {
-    notes.push('ios/Trakly/ does not exist yet: nothing to check');
-} else if (!existsSync(ASSET)) {
-    problems.push('ios/Trakly/Resources/trakly-reader.js is missing: node extension/build.mjs --reader را اجرا کنید');
-} else if (!existsSync(path.join(REPO, 'extension', 'build.mjs'))) {
-    // The public iOS mirror has no extension sources: the header and the writing rule only (the private repository
-    // proves the asset equals a fresh build on every push).
-    const text = readFileSync(ASSET, 'utf8');
-    notes.push('extension/ is absent (the public iOS mirror): the reader asset is compared with a fresh build in the private repository');
-
-    if (!text.startsWith('/* Trakly reader asset, generated by extension/build.mjs')) {
-        problems.push('trakly-reader.js: the first line is not the generator header (a hand-edited or foreign file)');
+function check(ok, problem) {
+    checks++;
+    if (!ok) {
+        problems.push(problem);
     }
+}
 
-    if (FORBIDDEN.test(text)) {
-        problems.push('trakly-reader.js: a half-space or a diacritic mark (the writing rule)');
+const rel = (file) => path.relative(REPO, file).split(path.sep).join('/');
+const read = (file) => readFileSync(file, 'utf8');
+
+function walk(dir) {
+    if (!existsSync(dir)) {
+        return [];
     }
-} else {
-    const { READER_HEADER, readerProblems } = await import(pathToFileURL(path.join(REPO, 'extension', 'mobile', 'reader.mjs')).href);
-    const { buildReader } = await import(pathToFileURL(path.join(REPO, 'extension', 'build.mjs')).href);
+    return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            return ['.build', '.swiftpm', 'DerivedData', 'build'].includes(entry.name) || entry.name.endsWith('.xcodeproj') ? [] : walk(full);
+        }
+        return [full];
+    });
+}
+
+// ---- the reader asset -----------------------------------------------------------------------------------------------
+
+async function checkAsset() {
+    if (!existsSync(ASSET)) {
+        problems.push('ios/Trakly/Resources/trakly-reader.js is missing: node extension/build.mjs --reader را اجرا کنید');
+        return;
+    }
     const bytes = readFileSync(ASSET);
     const text = bytes.toString('utf8');
+    check(!FORBIDDEN.test(text), 'trakly-reader.js: a half-space or a diacritic mark (the writing rule)');
 
-    if (text.split('\n', 1)[0] !== READER_HEADER) {
-        problems.push('trakly-reader.js: the first line is not the generator header (a hand-edited or foreign file)');
+    if (!existsSync(path.join(REPO, 'extension', 'build.mjs'))) {
+        notes.push('extension/ is absent (the public iOS mirror): the reader asset is compared with a fresh build in the private repository');
+        check(text.startsWith('/* Trakly reader asset, generated by extension/build.mjs'), 'trakly-reader.js: the first line is not the generator header');
+        return;
     }
-
-    problems.push(...readerProblems(text).map((problem) => `trakly-reader.js: ${problem}`));
-
-    if (FORBIDDEN.test(text)) {
-        problems.push('trakly-reader.js: a half-space or a diacritic mark (the writing rule)');
+    const { READER_HEADER, readerProblems } = await import(pathToFileURL(path.join(REPO, 'extension', 'mobile', 'reader.mjs')).href);
+    const { buildReader } = await import(pathToFileURL(path.join(REPO, 'extension', 'build.mjs')).href);
+    check(text.split('\n', 1)[0] === READER_HEADER, 'trakly-reader.js: the first line is not the generator header (a hand-edited or foreign file)');
+    for (const problem of readerProblems(text)) {
+        problems.push(`trakly-reader.js: ${problem}`);
     }
-
     const dist = mkdtempSync(path.join(tmpdir(), 'trakly-ios-reader-'));
-
     try {
         const built = await buildReader({ dist, copy: false, quiet: true });
-
-        if (!built.data.equals(bytes)) {
-            problems.push('trakly-reader.js differs from a fresh build: node extension/build.mjs --reader را اجرا کنید');
-        }
+        check(built.data.equals(bytes), 'trakly-reader.js differs from a fresh build: node extension/build.mjs --reader را اجرا کنید');
     } finally {
         rmSync(dist, { recursive: true, force: true });
     }
+}
+
+// ---- Swift sources --------------------------------------------------------------------------------------------------
+
+/** The source without comments (line and block), so a rule judges code, not its explanation. */
+function code(text) {
+    return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:"\\])\/\/.*$/gm, '$1');
+}
+
+/** The string literals of Swift code (plain, multi-line and raw). */
+function literals(text) {
+    const out = [];
+    const pattern = /#*"""[\s\S]*?"""#*|#*"(?:[^"\\\n]|\\.)*"#*/g;
+    for (const match of code(text).matchAll(pattern)) {
+        out.push(match[0]);
+    }
+    return out;
+}
+
+function checkSwift(files, privacy) {
+    const swift = files.filter((file) => file.endsWith('.swift'));
+    for (const file of swift) {
+        const name = rel(file);
+        const body = code(read(file));
+        const inReader = name.startsWith('ios/Trakly/Reader/');
+        check(!/\bcustomUserAgent\b/.test(body), `${name}: customUserAgent (the reader and the panel keep WebKit's own user agent)`);
+        if (!name.endsWith('Panel/PanelWebViewFactory.swift')) {
+            check(!/applicationNameForUserAgent/.test(body), `${name}: applicationNameForUserAgent outside PanelWebViewFactory.swift`);
+            check(!/addScriptMessageHandler/.test(body), `${name}: addScriptMessageHandler outside PanelWebViewFactory.swift`);
+        }
+        check(!/WKAppBoundDomains|UIDesignRequiresCompatibility/.test(body), `${name}: WKAppBoundDomains or UIDesignRequiresCompatibility`);
+        check(!/nonPersistent\(/.test(body), `${name}: a non-persistent data store (it breaks the shops' challenges)`);
+        if (inReader) {
+            check(!/WKWebsiteDataStore\.default\(\)|\.websiteDataStore\s*=\s*\.default\(\)/.test(body), `${name}: the panel's default data store in the reader`);
+            check(!/evaluateJavaScript/.test(body), `${name}: evaluateJavaScript in the reader (the asset runs in its private content world)`);
+            check(!/WKUserScript|addScriptMessageHandler|messageHandlers/.test(body), `${name}: a user script or a message handler in the reader (it has no bridge)`);
+        }
+        if (!/Features\/ExternalLinks\.swift$|System\/UpdateRequiredView\.swift$/.test(name)) {
+            check(!/UIApplication\.shared\.open\(/.test(body), `${name}: UIApplication.shared.open outside ExternalLinks.swift and UpdateRequiredView.swift`);
+        }
+        check(!/\b_WK[A-Za-z]|NSSelectorFromString|perform\(NSSelector|value\(forKey:\s*"_/.test(body), `${name}: private API`);
+        if (name.startsWith('ios/TraklyShare/')) {
+            check(!/\bopenURL\b|\.open\(/.test(body), `${name}: the share extension never opens the app or a URL`);
+        }
+        if (/TraklyCore\/Sources\/TraklyCore\/(Policy|NavigationPolicy|LinkText)\.swift$/.test(name)) {
+            check(!/URL\(string:|URLComponents\(/.test(body), `${name}: Foundation's URL in a decision (TraklyCore's own Url, §I3)`);
+        }
+        check(!/#available\(iOS 1[0-6]/.test(body), `${name}: an #available branch below iOS 17`);
+        for (const [api, reason] of [['systemUptime', '35F9.1'], ['mach_absolute_time', '35F9.1'], ['volumeAvailableCapacity', 'E174.1']]) {
+            if (new RegExp(`\\b${api}\\b`).test(body)) {
+                check(privacy.every((text) => text.includes(reason)), `${name}: ${api} without ${reason} in both privacy manifests`);
+            }
+        }
+        if (/TraklyDevPolicy/.test(body)) {
+            check(/#if DEBUG[\s\S]*TraklyDevPolicy[\s\S]*#else/.test(body), `${name}: the dev policy flag read outside #if DEBUG`);
+        }
+    }
+}
+
+// ---- words and the writing rule -------------------------------------------------------------------------------------
+
+async function checkWords(files) {
+    const buildFile = path.join(REPO, 'shared', 'app', 'build.mjs');
+    let banned = ['فیلترشکن', 'VPN', 'بازار', 'مایکت', 'Google Play', 'گوگل پلی', 'App Store', 'اپ استور', 'برنامه اتصال', 'تونل', 'فقط برای برنامه های انتخاب شده'];
+    let platform = ['Android', 'اندروید'];
+    if (existsSync(buildFile)) {
+        const build = await import(pathToFileURL(buildFile).href);
+        banned = build.BANNED;
+        platform = build.BANNED_FOR.ios;
+    }
+    const words = [...banned, ...platform];
+    for (const file of files) {
+        const name = rel(file);
+        if (!/\.(swift|strings|plist|yml|yaml|js|mjs|xcconfig|xcprivacy|md|json|entitlements|sh|css)$/.test(file) || file === ASSET) {
+            continue;
+        }
+        const text = read(file);
+        check(!FORBIDDEN.test(text), `${name}: a half-space or a diacritic mark (the writing rule)`);
+        let shipped = [];
+        if (file.endsWith('.swift') && !name.includes('/TraklyCoreTests/') && !name.startsWith('ios/TraklyTests/') && !name.startsWith('ios/TraklyUITests/')) {
+            shipped = literals(text);
+        } else if (file.endsWith('.strings')) {
+            shipped = [...text.matchAll(/=\s*"((?:[^"\\]|\\.)*)";/g)].map((match) => match[1]);
+        } else if (name.startsWith('ios/TraklyUITests/Panel/') && /\.(mjs|js)$/.test(file)) {
+            shipped = [code(text)];
+        }
+        for (const literal of shipped) {
+            for (const word of words) {
+                check(!literal.includes(word), `${name}: «${word}» in a text the iOS app shows (${literal.slice(0, 60)})`);
+            }
+        }
+    }
+}
+
+// ---- configuration --------------------------------------------------------------------------------------------------
+
+function pngInfo(file) {
+    const bytes = readFileSync(file);
+    const signature = bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    if (!signature || bytes.toString('ascii', 12, 16) !== 'IHDR') {
+        return null;
+    }
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20), colorType: bytes[25], transparency: bytes.includes(Buffer.from('tRNS', 'ascii')) };
+}
+
+function checkConfig() {
+    const project = path.join(IOS, 'project.yml');
+    const base = path.join(IOS, 'Config', 'Base.xcconfig');
+    const debug = path.join(IOS, 'Config', 'Debug.xcconfig');
+    const release = path.join(IOS, 'Config', 'Release.xcconfig');
+    for (const file of [project, base, debug, release]) {
+        check(existsSync(file), `${rel(file)} is missing`);
+    }
+    if (!existsSync(project) || !existsSync(base) || !existsSync(release) || !existsSync(debug)) {
+        return [];
+    }
+    const yml = read(project);
+    const baseText = read(base);
+    const debugText = read(debug);
+    const releaseText = read(release);
+    check(/IPHONEOS_DEPLOYMENT_TARGET:\s*"17\.0"/.test(yml) && /^IPHONEOS_DEPLOYMENT_TARGET = 17\.0$/m.test(baseText), 'IPHONEOS_DEPLOYMENT_TARGET is not 17.0 (project.yml and Base.xcconfig)');
+    check(/SWIFT_VERSION:\s*"5\.0"/.test(yml) && /^SWIFT_VERSION = 5\.0$/m.test(baseText), 'SWIFT_VERSION is not 5.0');
+    check(/SWIFT_STRICT_CONCURRENCY:\s*targeted/.test(yml), 'SWIFT_STRICT_CONCURRENCY is not targeted');
+    check(/TARGETED_DEVICE_FAMILY:\s*"1"/.test(yml), 'TARGETED_DEVICE_FAMILY is not iPhone only');
+    check(/ITSAppUsesNonExemptEncryption:\s*false/.test(yml), 'ITSAppUsesNonExemptEncryption is missing');
+    for (const key of ['NSCameraUsageDescription', 'NSFaceIDUsageDescription', 'NSPhotoLibraryAddUsageDescription']) {
+        check(new RegExp(`${key}:`).test(yml), `project.yml: ${key} is missing`);
+    }
+    check(/UIInterfaceOrientationPortrait/.test(yml) && !/UIInterfaceOrientationLandscape/.test(yml), 'project.yml: portrait only');
+    check(/applinks:erp\.trakly\.info/.test(yml) && /webcredentials:erp\.trakly\.info/.test(yml), 'project.yml: the associated domains');
+    check((yml.match(/group\.info\.trakly\.app/g) || []).length >= 2, 'project.yml: the App Group on the app and the extension');
+    check(!/WKAppBoundDomains|UIDesignRequiresCompatibility/.test(yml), 'project.yml: WKAppBoundDomains or UIDesignRequiresCompatibility');
+    const origins = [...releaseText.matchAll(/^TRAKLY_ORIGIN\s*=\s*(.+)$/gm)].map((match) => match[1].trim().replace('$()', ''));
+    check(origins.length === 1 && origins[0] === RELEASE_ORIGIN, `Release.xcconfig: exactly one origin, ${RELEASE_ORIGIN} (found ${origins.join(', ') || 'none'})`);
+    check(!/127\.0\.0\.1|localhost|10\.0\.2\.2/.test(releaseText) && !/127\.0\.0\.1|localhost/.test(baseText), 'Release.xcconfig or Base.xcconfig: a local origin');
+    check(!/TRAKLY_DEV_POLICY/.test(releaseText) && !/TRAKLY_DEV_POLICY/.test(baseText) && /^TRAKLY_DEV_POLICY = YES$/m.test(debugText), 'the dev policy flag belongs to Debug.xcconfig only');
+    check(/TRAKLY_STORE = appstore/.test(releaseText), 'Release.xcconfig: the store word appstore');
+    const version = existsSync(path.join(IOS, 'version.properties')) ? /MARKETING_VERSION=(\S+)/.exec(read(path.join(IOS, 'version.properties')))?.[1] : null;
+    check(version !== null && new RegExp(`^MARKETING_VERSION = ${version?.replace(/\./g, '\\.')}$`, 'm').test(baseText), 'ios/version.properties and Base.xcconfig disagree on MARKETING_VERSION');
+    check(/Delete :NSAppTransportSecurity/.test(yml), 'project.yml: local networking is removed from a Release build');
+
+    const privacy = [path.join(IOS, 'Trakly', 'Resources', 'PrivacyInfo.xcprivacy'), path.join(IOS, 'TraklyShare', 'PrivacyInfo.xcprivacy')];
+    const manifests = [];
+    for (const file of privacy) {
+        check(existsSync(file), `${rel(file)} is missing`);
+        if (existsSync(file)) {
+            const text = read(file);
+            manifests.push(text);
+            check(/<key>NSPrivacyTracking<\/key>\s*<false\/>/.test(text), `${rel(file)}: NSPrivacyTracking is not false`);
+        }
+    }
+    if (manifests[0]) {
+        check(manifests[0].includes('CA92.1'), 'the app privacy manifest: UserDefaults (CA92.1)');
+        check(manifests[0].includes('C617.1'), 'the app privacy manifest: file timestamps (C617.1, the 24-hour cleanup)');
+    }
+
+    const icon = path.join(IOS, 'Trakly', 'Resources', 'Assets.xcassets', 'AppIcon.appiconset', 'AppIcon-1024.png');
+    check(existsSync(icon), 'the AppIcon AppIcon-1024.png is missing (design/brand/build-brand-assets.py --ios)');
+    if (existsSync(icon)) {
+        const info = pngInfo(icon);
+        check(info !== null && info.width === 1024 && info.height === 1024, 'the AppIcon is not a 1024 × 1024 PNG');
+        check(info !== null && info.colorType !== 4 && info.colorType !== 6 && !info.transparency, 'the AppIcon has an alpha channel');
+    }
+
+    const marker = 'GENERATED by shared/app/build.mjs';
+    for (const file of ['Trakly/Resources/fa.lproj/Localizable.strings', 'Trakly/Resources/fa.lproj/InfoPlist.strings', 'TraklyShare/fa.lproj/Localizable.strings']) {
+        const full = path.join(IOS, file);
+        check(existsSync(full) && read(full).startsWith(`/* ${marker}`), `ios/${file}: missing or without the generator header (node shared/app/build.mjs --platform=ios)`);
+    }
+    const infoPlist = path.join(IOS, 'Trakly', 'Resources', 'fa.lproj', 'InfoPlist.strings');
+    if (existsSync(infoPlist)) {
+        for (const key of ['NSCameraUsageDescription', 'NSFaceIDUsageDescription', 'NSPhotoLibraryAddUsageDescription']) {
+            check(new RegExp(`^"${key}" = "`, 'm').test(read(infoPlist)), `InfoPlist.strings: ${key}`);
+        }
+    }
+    const colors = path.join(IOS, 'Trakly', 'Resources', 'Assets.xcassets', 'Colors');
+    for (const entry of existsSync(colors) ? readdirSync(colors) : []) {
+        const file = path.join(colors, entry, 'Contents.json');
+        if (entry.endsWith('.colorset') && existsSync(file)) {
+            check(read(file).includes('"author": "shared/app/build.mjs"'), `${rel(file)}: a colour set not written by the generator`);
+        }
+    }
+    check(existsSync(path.join(colors, 'LaunchBackground.colorset')), 'the LaunchBackground colour set is missing');
+
+    const shim = path.join(IOS, 'Trakly', 'Bridge', 'BridgeShim.js');
+    check(existsSync(shim), 'ios/Trakly/Bridge/BridgeShim.js is missing');
+    if (existsSync(shim)) {
+        const text = read(shim);
+        check((text.match(/var ORIGIN = 'https:\/\/erp\.trakly\.info';/g) || []).length === 1, 'BridgeShim.js: the release origin literal exactly once');
+        check(/location\.origin !== ORIGIN/.test(text), 'BridgeShim.js: TraklyNative only on the panel origin');
+        check(/Object\.freeze\(native\)/.test(text), 'BridgeShim.js: the object is frozen');
+        check(!/\beval\(|new Function\(/.test(code(text)), 'BridgeShim.js: no eval');
+    }
+    return manifests;
+}
+
+// ---- run ------------------------------------------------------------------------------------------------------------
+
+await checkAsset();
+
+if (!existsSync(path.join(IOS, 'Trakly', 'App'))) {
+    notes.push('ios/Trakly/App does not exist yet: only the reader asset was checked');
+} else {
+    const files = [...walk(path.join(IOS, 'Trakly')), ...walk(path.join(IOS, 'TraklyShare')), ...walk(path.join(IOS, 'Shared')), ...walk(path.join(IOS, 'TraklyCore')), ...walk(path.join(IOS, 'TraklyTests')), ...walk(path.join(IOS, 'TraklyUITests')), ...walk(path.join(IOS, 'Config')), ...walk(path.join(IOS, 'mirror')), ...walk(path.join(IOS, 'tools'))]
+        .concat([path.join(IOS, 'project.yml')].filter(existsSync))
+        .filter((file) => statSync(file).isFile());
+    const manifests = checkConfig();
+    checkSwift(files, manifests);
+    await checkWords(files);
 }
 
 for (const note of notes) {
@@ -75,8 +308,8 @@ for (const note of notes) {
 }
 
 if (problems.length > 0) {
-    console.error(`✗ ${problems.join('\n✗ ')}`);
+    console.error(`✗ ${problems.length} of ${checks} iOS source checks failed:\n✗ ${problems.join('\n✗ ')}`);
     process.exit(1);
 }
 
-console.log('✓ the iOS sources pass (minimal W0 check: the generated reader asset)');
+console.log(`✓ the iOS sources pass (${checks} checks)`);

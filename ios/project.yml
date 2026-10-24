@@ -1,0 +1,223 @@
+# The Xcode project of the Trakly iOS app (docs/specs/phase10-apps-and-stores.md D19, §E1, §E2): XcodeGen 2.46.0
+# generates Trakly.xcodeproj on CI (git-ignored). iOS 17.0 minimum, iPhone only, portrait, Swift 5 language mode with
+# targeted strict concurrency, no third-party dependency; the pure logic is the local package TraklyCore.
+name: Trakly
+
+options:
+  bundleIdPrefix: info.trakly
+  developmentLanguage: fa
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: targeted
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+    LOCALIZATION_PREFERS_STRING_CATALOGS: NO
+    SWIFT_EMIT_LOC_STRINGS: NO
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+    Release:
+      SWIFT_COMPILATION_MODE: wholemodule
+
+packages:
+  TraklyCore:
+    path: TraklyCore
+
+targets:
+  Trakly:
+    type: application
+    platform: iOS
+    sources:
+      - path: Trakly
+        excludes:
+          - Info.plist
+          - Trakly.entitlements
+          - Bridge/BridgeShim.js
+          - Resources/trakly-reader.js
+          - Resources/PrivacyInfo.xcprivacy
+      - path: Trakly/Bridge/BridgeShim.js
+        buildPhase: resources
+      - path: Trakly/Resources/trakly-reader.js
+        buildPhase: resources
+      - path: Trakly/Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      - path: Shared
+    dependencies:
+      - package: TraklyCore
+      - target: TraklyShare
+        embed: true
+    info:
+      path: Trakly/Info.plist
+      properties:
+        CFBundleDisplayName: Trakly
+        CFBundleName: Trakly
+        CFBundleDevelopmentRegion: fa
+        CFBundleLocalizations: [fa]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Default
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).SceneDelegate
+        # The Persian texts come from fa.lproj/InfoPlist.strings (generated from shared/app/copy.fa.json, §J4).
+        NSCameraUsageDescription: Trakly uses the camera to photograph items and to read barcodes.
+        NSFaceIDUsageDescription: Trakly uses Face ID to open the app.
+        NSPhotoLibraryAddUsageDescription: Trakly saves the images you choose to Photos.
+        # Debug only (§E1): the Release build removes this key (the script phase below).
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        UIAppFonts:
+          - Vazirmatn-Regular.ttf
+          - Vazirmatn-Bold.ttf
+        TraklyOrigin: $(TRAKLY_ORIGIN)
+        TraklyStore: $(TRAKLY_STORE)
+        TraklyDevPolicy: $(TRAKLY_DEV_POLICY)
+        TraklyAppGroup: $(TRAKLY_APP_GROUP)
+    entitlements:
+      path: Trakly/Trakly.entitlements
+      properties:
+        com.apple.developer.associated-domains:
+          - applinks:erp.trakly.info
+          - webcredentials:erp.trakly.info
+        com.apple.security.application-groups:
+          - group.info.trakly.app
+    settings:
+      base:
+        PRODUCT_NAME: Trakly
+        PRODUCT_BUNDLE_IDENTIFIER: $(TRAKLY_APP_BUNDLE_ID)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: Brand
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: $(TRAKLY_APP_PROFILE)
+    postBuildScripts:
+      - name: Local networking only in Debug
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${CONFIGURATION}" != "Debug" ]; then
+            /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :TraklyDevPolicy" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+          fi
+
+  TraklyShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TraklyShare
+        excludes:
+          - Info.plist
+          - TraklyShare.entitlements
+          - PrivacyInfo.xcprivacy
+      - path: TraklyShare/PrivacyInfo.xcprivacy
+        buildPhase: resources
+      # The font and the colour sets of the app (D16): the extension's sheet is Vazirmatn on the token colours too.
+      - path: Trakly/Resources/Fonts/Vazirmatn-Regular.ttf
+        buildPhase: resources
+      - path: Trakly/Resources/Fonts/Vazirmatn-Bold.ttf
+        buildPhase: resources
+      - path: Trakly/Resources/Assets.xcassets
+        buildPhase: resources
+      - path: Shared
+    dependencies:
+      - package: TraklyCore
+    info:
+      path: TraklyShare/Info.plist
+      properties:
+        CFBundleDisplayName: Trakly
+        CFBundleDevelopmentRegion: fa
+        CFBundleLocalizations: [fa]
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        TraklyAppGroup: $(TRAKLY_APP_GROUP)
+        UIAppFonts:
+          - Vazirmatn-Regular.ttf
+          - Vazirmatn-Bold.ttf
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsText: true
+    entitlements:
+      path: TraklyShare/TraklyShare.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.info.trakly.app
+    settings:
+      base:
+        PRODUCT_NAME: TraklyShare
+        PRODUCT_BUNDLE_IDENTIFIER: $(TRAKLY_SHARE_BUNDLE_ID)
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: $(TRAKLY_SHARE_PROFILE)
+
+  TraklyTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: TraklyTests
+    dependencies:
+      - target: Trakly
+      - package: TraklyCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.trakly.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  TraklyUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: TraklyUITests
+        excludes:
+          - Panel/**
+    dependencies:
+      - target: Trakly
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.trakly.app.uitests
+        TEST_TARGET_NAME: Trakly
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Trakly:
+    build:
+      targets:
+        Trakly: all
+        TraklyTests: [test]
+        TraklyUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - name: TraklyTests
+        - name: TraklyUITests
+    archive:
+      config: Release

@@ -312,7 +312,8 @@ final class JsonTests: XCTestCase {
         XCTAssertEqual(Json.parseOrNil(" true "), .bool(true))
         XCTAssertEqual(Json.parseOrNil("1"), .number(1))
         XCTAssertNotEqual(Json.parseOrNil("1"), .bool(true))
-        XCTAssertEqual(Json.parseOrNil(#""مح""#), .string("مح"))
+        let escaped = "\"" + "\\u" + "0645" + "\\u" + "062d" + "\""
+        XCTAssertEqual(Json.parseOrNil(escaped), .string("مح"))
         XCTAssertEqual(Json.parseOrNil(#"{"a":1,"b":2,"a":3}"#)?.objectValue?.keys, ["a", "b"])
         XCTAssertEqual(Json.parseOrNil(#"{"a":1,"b":2,"a":3}"#)?.objectValue?["a"], .number(3))
         var deep = ""
@@ -323,7 +324,7 @@ final class JsonTests: XCTestCase {
 
     func testWriting() {
         let value: JSONValue = ["b": 1.5, "a": [true, nil, "x\"y\n\u{2028}"], "n": 12]
-        XCTAssertEqual(Json.write(value), #"{"b":1.5,"a":[true,null,"x\"y\n "],"n":12}"#)
+        XCTAssertEqual(Json.write(value), #"{"b":1.5,"a":[true,null,"x\"y\n\u2028"],"n":12}"#)
         XCTAssertEqual(Json.parseOrNil(Json.write(value)), value)
     }
 }

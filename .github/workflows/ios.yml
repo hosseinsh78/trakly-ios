@@ -68,3 +68,41 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo/ios/TraklyCore
           swift:6.3.3-noble@sha256:c2f3ac2eb806ce43f68859c3d52bd3bb1cfc88672fb3a948b76e136d98e39278
           swift test
+
+  build:
+    name: Build and unit tests (macOS)
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Xcode
+        run: bash ios/tools/ci.sh xcode
+
+      - name: XcodeGen project
+        run: bash ios/tools/ci.sh xcodegen
+
+      - name: Build for testing
+        run: bash ios/tools/ci.sh build
+
+      - name: Panel stand-in
+        run: bash ios/tools/ci.sh server
+
+      - name: Unit tests (TraklyTests)
+        run: |
+          UDID="$(bash ios/tools/ci.sh device 'iPhone 16' | tail -1)"
+          bash ios/tools/ci.sh unit "$UDID"
+
+      - name: Logs and results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-build
+          path: |
+            build/logs
+            build/results
+          retention-days: 7
+          if-no-files-found: ignore

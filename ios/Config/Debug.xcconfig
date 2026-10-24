@@ -1,0 +1,12 @@
+// Debug (Simulator builds on CI): the local panel stand-in of the UI tests on 127.0.0.1:8000, the local fixture shops in
+// the reader's policy (TRAKLY_DEV_POLICY, Debug only, §E5) and ad hoc signing for the Simulator.
+#include "Base.xcconfig"
+
+TRAKLY_ORIGIN = http:/$()/127.0.0.1:8000
+TRAKLY_STORE = dev
+TRAKLY_DEV_POLICY = YES
+TRAKLY_LOCAL_NETWORKING = YES
+
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = -
+PROVISIONING_PROFILE_SPECIFIER =

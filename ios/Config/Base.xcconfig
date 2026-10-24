@@ -1,0 +1,16 @@
+// Build settings of every configuration (docs/specs/phase10-apps-and-stores.md §E1). No secret and no team here: the
+// release workflow passes DEVELOPMENT_TEAM and the profiles (§E11). `//` starts a comment in an xcconfig, so a URL is
+// written with `$()` between its slashes.
+
+TRAKLY_APP_BUNDLE_ID = info.trakly.app
+TRAKLY_SHARE_BUNDLE_ID = info.trakly.app.share
+TRAKLY_APP_GROUP = group.info.trakly.app
+
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
+
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+TARGETED_DEVICE_FAMILY = 1
+SWIFT_VERSION = 5.0
+SWIFT_STRICT_CONCURRENCY = targeted
+DEVELOPMENT_TEAM =

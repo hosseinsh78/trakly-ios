@@ -1,0 +1,38 @@
+{
+  "colors": [
+    {
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0xA2",
+          "green": "0x6A",
+          "red": "0x02"
+        }
+      },
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "color": {
+        "color-space": "srgb",
+        "components": {
+          "alpha": "1.000",
+          "blue": "0xFD",
+          "green": "0xD4",
+          "red": "0x7C"
+        }
+      },
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "shared/app/build.mjs",
+    "version": 1
+  }
+}
