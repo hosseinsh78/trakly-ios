@@ -29,6 +29,8 @@ final class AppCoordinator: NSObject {
 
     let intake: IntakeController
     let lock: AppLock
+    /// The offline and update screens and the lock cover, above everything presented (fixer 2026-10-24).
+    let covers: CoverWindow
     let files = Downloads()
     let printer = Printer()
     let scanner = Scanner()
@@ -40,25 +42,41 @@ final class AppCoordinator: NSObject {
     /// A `tab` context was seen since the last sign-in page (shares wait for it).
     private(set) var signedIn = false
     private var pendingIncoming: [IncomingLink.Incoming] = []
-    private var refreshTimers: [ObjectIdentifier: Timer] = [:]
-    private var snapshotTimers: [ObjectIdentifier: Timer] = [:]
-    private var scrollObservations: [ObjectIdentifier: NSKeyValueObservation] = [:]
-    private var lastSentInsets: [ObjectIdentifier: String] = [:]
+    /// The kept basket's S4 after a sign-in waits while the app is locked.
+    private var restoreWaitsForUnlock = false
+    // Per panel, removed when the panel goes (panelWillBeDestroyed: a later panel may get the same identifier).
+    var refreshTimers: [ObjectIdentifier: Timer] = [:]
+    var snapshotTimers: [ObjectIdentifier: Timer] = [:]
+    var scrollObservations: [ObjectIdentifier: NSKeyValueObservation] = [:]
+    var lastSentInsets: [ObjectIdentifier: String] = [:]
+    var refreshControls: [ObjectIdentifier: UIRefreshControl] = [:]
+    /// The resolved appearance the pages were last told (`appearance`).
+    private var lastSentNight: Bool?
+    private var appearanceTimer: Timer?
     let defaults = UserDefaults.standard
 
     init(window: UIWindow) {
         self.window = window
         intake = IntakeController()
         lock = AppLock(authenticator: Authenticators.make())
+        covers = CoverWindow(main: window)
         super.init()
         intake.coordinator = self
         lock.coordinator = self
         hub.delegate = self
+        PanelWebViewFactory.windowWidth = window.bounds.width
         let topology = WebViewPool.Topology(rawValue: defaults.string(forKey: Keys.topology) ?? "") ?? .stacks
         pool = WebViewPool(topology: topology, hub: hub, events: self)
         tabs = Tabs.fromJson(defaults.string(forKey: Keys.tabs))
         tabBar = TabBarController(coordinator: self)
         root = RootViewController(tabs: tabBar)
+        root.onStyleChange = { [weak self] in self?.styleChanged() }
+        _ = NotificationCenter.default.addObserver(forName: UIContentSizeCategory.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.textSizeChanged() }
+        }
+        _ = NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.intake.memoryWarning() }
+        }
     }
 
     enum Keys {
@@ -72,6 +90,7 @@ final class AppCoordinator: NSObject {
 
     func start() {
         Appearance.apply(to: window)
+        lastSentNight = resolvedNight
         window.rootViewController = root
         window.makeKeyAndVisible()
         root.loadViewIfNeeded()
@@ -310,22 +329,28 @@ final class AppCoordinator: NSObject {
         }
     }
 
+    /// In CSS px: the safe area divided by the page zoom (the text size, PanelWebViewFactory.pageZoom).
     func insetsFor(_ panel: Panel) -> (top: Double, bottom: Double) {
         if modal?.panel === panel { return (0, 0) }
-        guard let stack = stack(of: panel), let host = stack.top else {
-            let insets = window.safeAreaInsets
-            return (Double(insets.top), Double(insets.bottom))
+        if let stack = stack(of: panel), stack.top != nil, !chrome(for: panel, in: stack).fullScreen {
+            return (0, 0)
         }
-        let chrome = chrome(for: panel, in: stack)
-        if !chrome.fullScreen { return (0, 0) }
         let insets = window.safeAreaInsets
-        _ = host
-        return (Double(insets.top), Double(insets.bottom))
+        let zoom = max(Double(panel.webView.pageZoom), 1)
+        return ((Double(insets.top) / zoom).rounded(), (Double(insets.bottom) / zoom).rounded())
+    }
+
+    /// The system text size changed: every panel page follows (§D5 "Text size" on iOS, fixer 2026-10-24).
+    func textSizeChanged() {
+        PanelWebViewFactory.windowWidth = window.bounds.width
+        let zoom = PanelWebViewFactory.pageZoom()
+        for panel in pool.all where panel.webView.pageZoom != zoom {
+            panel.webView.pageZoom = zoom
+            sendInsets(panel)
+        }
     }
 
     // MARK: - pull to refresh (§E3)
-
-    private var refreshControls: [ObjectIdentifier: UIRefreshControl] = [:]
 
     private func updateRefreshControl(_ panel: Panel, refreshable: Bool) {
         let id = ObjectIdentifier(panel)
@@ -445,6 +470,9 @@ final class AppCoordinator: NSObject {
 
     /// Closes the modal: `stacks` destroys its WebView; `single` moves the one WebView back to its tab and goes back
     /// (Inertia restores the page and its scroll) or, when the modal was its first entry, visits the remembered URL.
+    /// The dismissal starts at the modal's presenter, so S4, S5, S6 or an alert over the modal goes with it (a dismiss
+    /// sent to the modal itself would only remove what it presents and leave an empty modal, fixer 2026-10-24); the
+    /// intake screens it takes along are told first.
     func closeModal(navigateBack: Bool = true, completion: (() -> Void)? = nil) {
         guard let controller = modal else {
             completion?()
@@ -452,7 +480,11 @@ final class AppCoordinator: NSObject {
         }
         modal = nil
         let panel = controller.panel
-        controller.container.dismiss(animated: true) { [weak self] in
+        let container = controller.container
+        intake.screensClosing(above: container)
+        let host = container.presentingViewController ?? root
+        host?.dismiss(animated: true) { [weak self] in
+            controller.tearDown()
             guard let self else { return }
             if self.pool.topology == .single {
                 self.selectedStack.attach(panel)
@@ -571,14 +603,17 @@ final class AppCoordinator: NSObject {
     }
 
     private func closeOverlaysForSessionEnd() {
-        intake.closeScreens()
         if let controller = modal {
             modal = nil
-            controller.container.dismiss(animated: false)
+            let container = controller.container
+            intake.screensClosing(above: container)
+            (container.presentingViewController ?? root)?.dismiss(animated: false)
+            controller.tearDown()
             if pool.topology == .stacks {
                 pool.release(WebViewPool.modalKey)
             }
         }
+        intake.closeScreens()
     }
 
     // MARK: - page messages
@@ -611,7 +646,12 @@ final class AppCoordinator: NSObject {
         refreshChrome()
         scheduleSnapshot(panel)
         if firstSignIn {
-            intake.restoreAfterSignIn()
+            // The kept basket's S4 waits for the unlock (nothing opens under the lock cover).
+            if lock.locked {
+                restoreWaitsForUnlock = true
+            } else {
+                intake.restoreAfterSignIn()
+            }
             flushIncoming()
         }
     }
@@ -639,13 +679,13 @@ final class AppCoordinator: NSObject {
         if minBuild > AppConfig.build {
             showUpdate()
         } else {
-            root.removeOverlay(tag: Overlay.update)
+            covers.remove(tag: Overlay.update)
         }
     }
 
     private func showUpdate() {
-        guard !root.hasOverlay(Overlay.update) else { return }
-        root.showOverlay(UpdateRequiredView.controller(storeUrl: storeUrl), tag: Overlay.update)
+        guard !covers.has(Overlay.update) else { return }
+        covers.show(UpdateRequiredView.controller(storeUrl: storeUrl), tag: Overlay.update, key: true)
         endLaunchCover()
     }
 
@@ -654,8 +694,8 @@ final class AppCoordinator: NSObject {
     private func networkChanged(_ satisfied: Bool) {
         let was = online
         online = satisfied
-        root.setBanner(visible: !satisfied && !root.hasOverlay(Overlay.offline) && signedIn)
-        if satisfied && !was && root.hasOverlay(Overlay.offline) {
+        root.setBanner(visible: !satisfied && !covers.has(Overlay.offline) && signedIn)
+        if satisfied && !was && covers.has(Overlay.offline) {
             retryAfterOffline()
         }
     }
@@ -664,13 +704,13 @@ final class AppCoordinator: NSObject {
         let view = OfflineView.controller(noNetwork: !online) { [weak self] in
             self?.retryAfterOffline()
         }
-        root.showOverlay(view, tag: Overlay.offline)
+        covers.show(view, tag: Overlay.offline, key: true)
         root.setBanner(visible: false)
         endLaunchCover()
     }
 
     func retryAfterOffline() {
-        root.removeOverlay(tag: Overlay.offline)
+        covers.remove(tag: Overlay.offline)
         let panel = modal?.panel ?? selectedPanel
         if let panel {
             if let url = panel.currentUrl, panel.webView.url == nil || panel.httpError == nil {
@@ -685,21 +725,43 @@ final class AppCoordinator: NSObject {
 
     func setAppearance(_ mode: String) {
         Appearance.set(mode, on: window)
+        covers.syncAppearance()
         broadcastAppearance()
     }
 
     func broadcastAppearance() {
-        let body = JSONObject([("mode", .string(Appearance.mode)), ("resolved", .string(resolvedNight ? "dark" : "light"))])
+        let night = resolvedNight
+        lastSentNight = night
+        let body = JSONObject([("mode", .string(Appearance.mode)), ("resolved", .string(night ? "dark" : "light"))])
         for panel in pool.all {
             panel.send("appearance", body, isModal: isModal(panel))
         }
         refreshChrome(animated: false)
     }
 
+    /// The light or dark trait changed (fixer 2026-10-24): with «ظاهر» = system, iOS switching light and dark (Control
+    /// Center, the automatic schedule) reaches the open pages too (they kept the `resolved` of their `hello`). iOS
+    /// flips the traits for a moment in the background to snapshot both looks, so a change counts once it held 0.3 s
+    /// outside the background.
+    func styleChanged() {
+        appearanceTimer?.invalidate()
+        appearanceTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.settleAppearance() }
+        }
+    }
+
+    private func settleAppearance() {
+        guard UIApplication.shared.applicationState != .background, resolvedNight != lastSentNight else { return }
+        broadcastAppearance()
+    }
+
     /// The app came to the front or went away (§B4.2 `appState`).
     func appState(active: Bool) {
         for panel in pool.all {
             panel.send("appState", JSONObject([("active", .bool(active))]), isModal: isModal(panel))
+        }
+        if active {
+            settleAppearance()
         }
     }
 
@@ -756,6 +818,21 @@ final class AppCoordinator: NSObject {
             )
             act(IncomingLink.decide(incoming, screen, trusted: AppConfig.origin), incoming: incoming)
         }
+    }
+
+    /// The lock opened: what waited for it (the shares, the quick actions and links, the kept basket's S4).
+    func unlocked() {
+        if restoreWaitsForUnlock {
+            restoreWaitsForUnlock = false
+            intake.restoreAfterSignIn()
+        }
+        flushIncoming()
+    }
+
+    /// Another account signed in (§B4.1 `config`, §A1): the shares that waited for a sign-in are not its own.
+    func dropPendingShares() {
+        pendingIncoming.removeAll { if case .shares = $0 { return true } else { return false } }
+        PendingShares.clear()
     }
 
     private func act(_ action: IncomingLink.Action, incoming: IncomingLink.Incoming) {

@@ -78,6 +78,12 @@ final class ModalController: UIViewController {
         }
     }
 
+    /// After the dismissal: the container keeps this controller as its root and this controller keeps the container,
+    /// so the pair would outlive the modal (fixer 2026-10-24).
+    func tearDown() {
+        container.setViewControllers([], animated: false)
+    }
+
     @objc private func closeTapped() {
         coordinator?.modalBack(fromCloseButton: true)
     }

@@ -56,15 +56,16 @@ final class TabStack: NSObject, UINavigationControllerDelegate {
         self.panel = panel
         // The edge swipe back wins over the page's own pan (a page wider than the screen took the swipe now and then).
         let scrollPan = panel.webView.scrollView.panGestureRecognizer
-        if let pop = nav.interactivePopGestureRecognizer, !wiredPans.contains(ObjectIdentifier(scrollPan)) {
-            wiredPans.insert(ObjectIdentifier(scrollPan))
+        if let pop = nav.interactivePopGestureRecognizer, !wiredPans.contains(scrollPan) {
+            wiredPans.add(scrollPan)
             scrollPan.require(toFail: pop)
         }
         top?.show(panel.webView)
     }
 
-    /// The WebView pans already set to wait for the edge swipe (`attach` runs again for the same WebView).
-    private var wiredPans: Set<ObjectIdentifier> = []
+    /// The WebView pans already set to wait for the edge swipe (`attach` runs again for the same WebView); weak, so a
+    /// destroyed WebView's pan neither stays alive nor makes a later one at its address look wired (fixer 2026-10-24).
+    private let wiredPans = NSHashTable<UIGestureRecognizer>.weakObjects()
 
     /// The panel left this stack (LRU destroy, single topology moving away, session end): the hosts keep their images.
     func detachPanel(resetHistory: Bool) {

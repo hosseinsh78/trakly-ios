@@ -246,6 +246,11 @@ final class FileNamesAndAddressesTests: XCTestCase {
         XCTAssertEqual(ImageAddress.bytes(ofNumericAddress: "1.2.3.4"), [1, 2, 3, 4])
         XCTAssertNil(ImageAddress.bytes(ofNumericAddress: "shop.example.com"))
         XCTAssertFalse(ImageAddress.allPublic([]))
+        // The fake IPs of proxy and VPN clients (198.18/15) are not refused (§I3, fixer 2026-10-24).
+        XCTAssertTrue(ImageAddress.isPublic([198, 18, 0, 7]))
+        XCTAssertTrue(ImageAddress.isPublic([198, 19, 255, 1]))
+        XCTAssertTrue(ImageAddress.allPublic([[198, 18, 3, 4], [93, 184, 216, 34]]))
+        XCTAssertTrue(ImageAddress.isPublic(ImageAddress.bytes(ofNumericAddress: "::ffff:198.18.0.9")!))
     }
 
     func testOnlyTheImagesOfTheProductAndItsCapture() {

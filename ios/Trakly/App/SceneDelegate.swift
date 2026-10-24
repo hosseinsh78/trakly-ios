@@ -46,6 +46,11 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func sceneDidBecomeActive(_ scene: UIScene) {
         coordinator?.lock.didBecomeActive()
         pickUpShares()
+        TestHooks.queuedActions { [weak self] types in
+            for type in types {
+                self?.coordinator?.receive(.quickAction(type))
+            }
+        }
         coordinator?.appState(active: true)
     }
 
@@ -75,7 +80,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 }
 
 /// Debug-only hooks of the UI tests (§K5): a clean start (`-TraklyResetState`), a shared link as if the share extension
-/// had saved it (`-TraklyTestShare <url>`). A Release build runs `start` at once and reads no argument.
+/// had saved it (`-TraklyTestShare <url>`), the stand-in's queued shares and quick actions at an activation. A Release
+/// build runs `start` at once, reads no argument and asks the stand-in nothing.
 @MainActor
 enum TestHooks {
     static func prepare(_ start: @escaping () -> Void) {
@@ -112,6 +118,22 @@ enum TestHooks {
             }
         #endif
         start()
+    }
+
+    /// Debug UI tests only: the quick actions the stand-in queued (`/__test/action`), as if the home screen had sent
+    /// them; otherwise nothing.
+    static func queuedActions(_ receive: @escaping ([String]) -> Void) {
+        #if DEBUG
+            if AppConfig.uiTest, let url = URL(string: AppConfig.origin + "/__test/action-queue") {
+                Task { @MainActor in
+                    let data = try? await URLSession.shared.data(from: url).0
+                    let types = data.flatMap { Json.parseOrNil(String(decoding: $0, as: UTF8.self))?.stringList } ?? []
+                    if !types.isEmpty {
+                        receive(types)
+                    }
+                }
+            }
+        #endif
     }
 
     /// Debug UI tests only: links the stand-in queued (`/__test/share`) are saved as the share extension would save

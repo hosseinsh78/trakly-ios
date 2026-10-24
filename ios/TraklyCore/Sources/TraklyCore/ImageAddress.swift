@@ -74,7 +74,8 @@ public enum ImageAddress {
                 (a == 172 && (16 ... 31).contains(second)) || // private
                 (a == 192 && second == 168) || // private
                 (a == 192 && second == 0 && b[2] == 0) || // IETF protocol assignments 192.0.0/24
-                (a == 198 && (second == 18 || second == 19)) || // benchmarking 198.18/15
+                // 198.18/15 is not refused (§I3; fixer 2026-10-24): the common iOS and Android proxy and VPN clients
+                // answer DNS with "fake IPs" from it, and refusing it lost every product photo behind them.
                 a >= 224 // multicast 224/4, reserved 240/4, broadcast
         )
     }

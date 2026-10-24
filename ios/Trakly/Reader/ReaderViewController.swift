@@ -5,11 +5,14 @@ import WebKit
 /// S5 «خواندن محصول» (docs/specs/phase10-apps-and-stores.md D9, §A3, §E5): a sheet at its large height with the
 /// grabber; «لغو», the title and the real host as a LTR chip; the stage line; the challenge banner (the user solves it
 /// in the visible page, no deadline while he does); the `none` hint; the error card with «تلاش دوباره» and «بستن»
-/// stacked full width; «محصول پیدا شد» for a moment on success. Swiping down is off while a read runs.
+/// stacked full width; «محصول پیدا شد» for a moment on success. Swiping down is off while a read runs or a challenge
+/// shows; on the error card a swipe down is «بستن» (fixer 2026-10-24: it used to leave the row reading, the reader
+/// WebView alive and every later `intake.line` busy).
 @MainActor
 final class ReaderViewController: UIViewController {
     let session: ReaderSession
-    var onClose: ((ReaderSession, String) -> Void)?
+    /// The session, the reason, and whether the sheet is gone already (a swipe down).
+    var onClose: ((ReaderSession, String, Bool) -> Void)?
 
     private let hostChip = PaddedLabel()
     private let stageLabel = UILabel()
@@ -54,6 +57,7 @@ final class ReaderViewController: UIViewController {
             sheet.preferredCornerRadius = Theme.cardRadius
         }
         navigation.isModalInPresentation = true
+        navigation.presentationController?.delegate = self
         return navigation
     }
 
@@ -331,17 +335,31 @@ final class ReaderViewController: UIViewController {
         session.start()
     }
 
-    private func giveUp() {
+    private func giveUp(dismissed: Bool = false) {
         if case let .failed(reason, _, _) = session.state {
-            close(reason: reason)
+            close(reason: reason, dismissed: dismissed)
         } else {
-            close(reason: "cancelled")
+            close(reason: "cancelled", dismissed: dismissed)
         }
     }
 
-    private func close(reason: String) {
+    private var closed = false
+
+    private func close(reason: String, dismissed: Bool = false) {
+        guard !closed else { return }
+        closed = true
         progressTimer?.invalidate()
         session.close()
-        onClose?(session, reason)
+        // The handler lets go of the sheet (it may be the last owner of this controller after a swipe).
+        withExtendedLifetime(self) {
+            onClose?(session, reason, dismissed)
+        }
+    }
+}
+
+extension ReaderViewController: UIAdaptivePresentationControllerDelegate {
+    /// A swipe down on the error card (the only state that allows it): the same as «بستن».
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        giveUp(dismissed: true)
     }
 }

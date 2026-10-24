@@ -13,7 +13,10 @@
  *
  *   node ios/TraklyUITests/Panel/server.mjs [--port 8000]
  *
- * Test controls (the UI tests call them over HTTP): POST /__test/reset, /__test/min?value=<n>, /__test/down?on=1.
+ * Test controls (the UI tests call them over HTTP): POST /__test/reset, /__test/min?value=<n>, /__test/down?on=1,
+ * /__test/share?url=<link> and /__test/action?type=<quick action type> (picked up by a Debug build at its next
+ * activation, as if the share extension or the home screen had sent them), /__test/line?url=<link> (the first line of
+ * the next order form holds that link). The fixture link /dev/shop/forbidden answers the read with `permission`.
  */
 import http from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
@@ -29,7 +32,7 @@ const PORT = portIndex > 0 ? Number(process.argv[portIndex + 1]) : 8000;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const USERS = { shop1: 'password' };
 
-const state = { sessions: new Set(), min: 0, down: false, saved: 0, landing: '/app', shares: [], log: [] };
+const state = { sessions: new Set(), min: 0, down: false, saved: 0, landing: '/app', shares: [], actions: [], lineUrl: '', log: [] };
 
 // ---- products of the fixture shops -----------------------------------------------------------------------------------
 
@@ -252,7 +255,7 @@ function orderForm(title, url) {
     return `${header(title)}
       <div class="card form"><label>مشتری<input name="customer" placeholder="نام یا شماره موبایل مشتری" data-dirty data-id="customer"></label></div>
       <h2 class="section">اقلام خرید</h2>
-      <div id="lines"></div>
+      <div id="lines" data-prefill="${esc(state.lineUrl)}"></div>
       <button class="ghost wide" data-id="add-line">افزودن ردیف</button>
       <div class="card form"><label>یادداشت<textarea name="note" rows="3" data-dirty data-id="note"></textarea></label></div>
       <p class="muted" data-id="intake-status"></p>
@@ -490,6 +493,8 @@ const server = http.createServer(async (request, response) => {
             state.down = false;
             state.landing = '/app';
             state.shares = [];
+            state.actions = [];
+            state.lineUrl = '';
             state.log = [];
             return send(response, { body: 'reset' });
         }
@@ -511,6 +516,19 @@ const server = http.createServer(async (request, response) => {
         if (pathname === '/__test/share-queue') {
             const queued = state.shares.filter(Boolean);
             state.shares = [];
+            return send(response, { type: 'application/json', body: JSON.stringify(queued) });
+        }
+        if (pathname === '/__test/line') {
+            state.lineUrl = url.searchParams.get('url') || '';
+            return send(response, { body: 'line ' + state.lineUrl });
+        }
+        if (pathname === '/__test/action') {
+            state.actions.push(url.searchParams.get('type') || '');
+            return send(response, { body: 'queued' });
+        }
+        if (pathname === '/__test/action-queue') {
+            const queued = state.actions.filter(Boolean);
+            state.actions = [];
             return send(response, { type: 'application/json', body: JSON.stringify(queued) });
         }
         if (pathname === '/__test/down') {
@@ -564,6 +582,9 @@ const server = http.createServer(async (request, response) => {
                 const target = typeof body.url === 'string' ? body.url : '';
                 // The server's own read succeeds only for the server-tee fixture; every other fixture shop "blocks" it,
                 // so the app reads it with its reader and posts the capture (§A2 F1).
+                if (new URL(target, ORIGIN).pathname === '/dev/shop/forbidden') {
+                    return send(response, { type: 'application/json', body: JSON.stringify({ ok: false, reason: 'permission', message: '' }) });
+                }
                 const serverRead = !body.capture && new URL(target, ORIGIN).pathname === '/dev/shop/server-tee';
                 const captured = typeof body.capture === 'string' && body.capture.includes('"ld"');
                 const product = serverRead || captured ? productFor(target) : null;

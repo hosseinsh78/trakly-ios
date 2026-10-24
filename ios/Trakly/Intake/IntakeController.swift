@@ -49,7 +49,11 @@ final class IntakeController: NSObject {
 
     private var composer: UIHostingController<ComposerView>?
     private var readerNav: UINavigationController?
+    /// The open S5 (its session is closed with it).
+    private var reader: ReaderViewController?
     private var reviewHost: UIViewController?
+    private var reviewMode: ReviewMode?
+    private var reviewState: ReviewState?
     /// The capture of each row's read (its image URLs bound the native fetches, D11).
     private var rowCaptures: [String: String] = [:]
     /// The open `intake.line` of the web form (single mode).
@@ -71,6 +75,8 @@ final class IntakeController: NSObject {
         if basket.account(key) {
             refs.clear()
             captures.clear()
+            // §B4.1 `config`: another account wipes the basket and the pending shares (the App Group's and the queued).
+            coordinator?.dropPendingShares()
         }
         store.save()
         syncModel()
@@ -79,9 +85,10 @@ final class IntakeController: NSObject {
     /// After a sign-in of the same account the kept basket comes back with «محصول های انتخاب شده هنوز اینجا هستند.».
     func restoreAfterSignIn() {
         basket.expire()
-        guard !basket.state.lines.isEmpty, composer == nil, coordinator?.modal == nil else { return }
-        openComposer(shared: [], merge: false)
-        coordinator?.toast(L.s("basket_kept"))
+        guard !basket.state.lines.isEmpty, !isOpen(composer), coordinator?.modal == nil else { return }
+        openComposer(shared: [], merge: false) { [weak self] in
+            self?.coordinator?.toast(L.s("basket_kept"))
+        }
     }
 
     /// A session end (§A1): the image refs and the pending capture go; the basket and the shares stay unless the user
@@ -100,14 +107,76 @@ final class IntakeController: NSObject {
     }
 
     func closeScreens() {
+        reader?.session.close()
+        reader = nil
         readerNav?.dismiss(animated: false)
         readerNav = nil
         reviewHost?.dismiss(animated: false)
         reviewHost = nil
+        reviewMode = nil
+        reviewState = nil
         composer?.dismiss(animated: false)
         composer = nil
         line?.reply.error("cancelled")
         line = nil
+    }
+
+    /// Whether `controller` is still on screen (UIKit may have dismissed it with what it was presented over).
+    private func isOpen(_ controller: UIViewController?) -> Bool {
+        guard let controller else { return false }
+        return controller.presentingViewController != nil && !controller.isBeingDismissed
+    }
+
+    /// Whether `controller` was presented, directly or through other screens, over `base`.
+    private func isPresented(_ controller: UIViewController?, over base: UIViewController) -> Bool {
+        var presenter = controller?.presentingViewController
+        while let current = presenter {
+            if current === base {
+                return true
+            }
+            presenter = current.presentingViewController
+        }
+        return false
+    }
+
+    /// The modal closes from its presenter and takes the intake screens over it along (fixer 2026-10-24): their state
+    /// goes now (the basket stays on disk, an open single-mode `intake.line` answers `cancelled`).
+    func screensClosing(above modal: UIViewController) {
+        if isPresented(readerNav, over: modal) {
+            reader?.session.close()
+            reader = nil
+            readerNav = nil
+        }
+        if isPresented(reviewHost, over: modal) {
+            if case let .composer(rowId)? = reviewMode {
+                model.rows.removeAll { $0.id == rowId }
+                rowCaptures.removeValue(forKey: rowId)
+            }
+            reviewHost = nil
+            reviewMode = nil
+            reviewState = nil
+        }
+        if isPresented(composer, over: modal) {
+            composer = nil
+            store.save()
+        }
+        if line != nil, readerNav == nil, reviewHost == nil {
+            line?.reply.error("cancelled")
+            line = nil
+        }
+    }
+
+    /// The reader goes before its site data is removed (`shopdata.clear`, §E5).
+    func closeReader() {
+        guard let reader else { return }
+        reader.session.close()
+        self.reader = nil
+        readerNav?.dismiss(animated: false)
+        readerNav = nil
+        if reviewHost == nil {
+            line?.reply.error("cancelled")
+            line = nil
+        }
     }
 
     func modalChanged() {
@@ -151,7 +220,7 @@ final class IntakeController: NSObject {
 
     // MARK: - S4
 
-    func openComposer(shared: [String], merge: Bool) {
+    func openComposer(shared: [String], merge: Bool, completion: (() -> Void)? = nil) {
         for url in shared {
             basket.share(url)
         }
@@ -162,9 +231,11 @@ final class IntakeController: NSObject {
         ClipboardChip.probablyHoldsLink { [weak self] found in
             self?.model.clipboard = found
         }
-        if composer != nil {
+        if isOpen(composer) {
+            completion?()
             return
         }
+        composer = nil
         let view = ComposerView(model: model, actions: ComposerActions(controller: self))
         let host = UIHostingController(rootView: view)
         host.modalPresentationStyle = .pageSheet
@@ -174,10 +245,11 @@ final class IntakeController: NSObject {
             sheet.prefersGrabberVisible = true
             sheet.preferredCornerRadius = Theme.cardRadius
         }
-        host.isModalInPresentation = true
+        // A swipe down closes S4 when nothing would be lost, else it asks first (presentationControllerShouldDismiss).
+        host.presentationController?.delegate = self
         host.view.accessibilityIdentifier = "composer"
         composer = host
-        Alerts.top(from: coordinator?.root)?.present(host, animated: true)
+        Alerts.top(from: coordinator?.root)?.present(host, animated: true, completion: completion)
     }
 
     /// «بستن» of S4: a basket with lines asks «محصول های انتخاب شده نگه داشته شوند؟» first.
@@ -283,9 +355,21 @@ final class IntakeController: NSObject {
         dismissComposer { [weak self] in
             guard let self, let coordinator = self.coordinator else { return }
             if merge, let modal = coordinator.modal {
-                let sent = modal.panel.send("intake.offer", JSONObject([("intakeId", .string(id))]), isModal: true, timeout: 15) { _ in }
+                // A form that does not take the products ({ok: false}: the quick order form, a page between forms) or
+                // no answer: a new order form gets them, after the dirty confirm (fixer 2026-10-24, the Android rule).
+                let fallback = { [weak self] in
+                    guard let self, self.basket.issuedIds().contains(id) else { return }
+                    coordinator.afterModal(confirmFirst: coordinator.modal?.panel.shownPage?.dirty == true) {
+                        coordinator.openModal(AppConfig.origin + "/app/orders/create?intake=" + id)
+                    }
+                }
+                let sent = modal.panel.send("intake.offer", JSONObject([("intakeId", .string(id))]), isModal: true, timeout: 15) { reply in
+                    if reply?.bool("ok") != true {
+                        fallback()
+                    }
+                }
                 if !sent {
-                    coordinator.openModal(AppConfig.origin + "/app/orders/create?intake=" + id)
+                    fallback()
                 }
             } else {
                 coordinator.openModal(AppConfig.origin + "/app/orders/create?intake=" + id)
@@ -390,6 +474,11 @@ final class IntakeController: NSObject {
         setRow(id, capture == nil ? .fetching : .reading)
         pageFetch(url: row.url, capture: capture) { [weak self] reply in
             guard let self, let reply, self.model.rows.contains(where: { $0.id == id }) else { return }
+            guard self.isOpen(self.composer) else {
+                // S4 closed during the read: nothing opens over the tabs; the row waits with «تلاش دوباره».
+                self.setRow(id, .failed)
+                return
+            }
             if reply.bool("ok") == true, let product = reply.object("product") {
                 let source = reply.string("source") == "capture" ? "capture" : "server"
                 if let capture { self.rowCaptures[id] = capture }
@@ -433,23 +522,35 @@ final class IntakeController: NSObject {
         let session = ReaderSession(readId: readId, url: url, captures: captures, limiter: readLimiter)
         let controller = ReaderViewController(session: session)
         let navigation = controller.sheet()
-        session.onCaptured = { [weak self] done in
+        session.onCaptured = { [weak self, weak navigation] done in
             guard let self else { return }
             let capture = self.captures.get(done.readId)?.capture
             self.captures.remove(done.readId)
             self.readerNav = nil
-            navigation.dismiss(animated: true) {
+            self.reader = nil
+            if let navigation {
+                navigation.dismiss(animated: true) {
+                    completion(capture)
+                }
+            } else {
                 completion(capture)
             }
             done.close()
         }
-        controller.onClose = { [weak self] _, _ in
+        // «لغو», «بستن», or a swipe down on the error card (the sheet is gone already then, fixer 2026-10-24).
+        controller.onClose = { [weak self, weak navigation] _, _, dismissed in
             self?.readerNav = nil
-            navigation.dismiss(animated: true) {
+            self?.reader = nil
+            if let navigation, !dismissed, navigation.presentingViewController != nil {
+                navigation.dismiss(animated: true) {
+                    completion(nil)
+                }
+            } else {
                 completion(nil)
             }
         }
         readerNav = navigation
+        reader = controller
         Alerts.top(from: coordinator?.root)?.present(navigation, animated: true)
     }
 
@@ -481,20 +582,28 @@ final class IntakeController: NSObject {
         host.view.backgroundColor = Theme.surface
         host.view.accessibilityIdentifier = "review"
         if let sheet = host.sheetPresentationController {
-            sheet.detents = VariantMatcher.options(product).isEmpty ? [.medium(), .large()] : [.large()]
+            // §E6: .medium and .large, opening at .large when the product has options.
+            sheet.detents = [.medium(), .large()]
             sheet.selectedDetentIdentifier = VariantMatcher.options(product).isEmpty ? .medium : .large
             sheet.prefersGrabberVisible = true
             sheet.preferredCornerRadius = Theme.cardRadius
         }
-        host.isModalInPresentation = true
+        // A swipe down is «انصراف» (as on Android), except while the photo is being saved (fixer 2026-10-24).
+        host.presentationController?.delegate = self
         reviewHost = host
+        reviewMode = mode
+        reviewState = state
         Alerts.top(from: coordinator?.root)?.present(host, animated: true)
     }
 
-    private func cancelReview(_ mode: ReviewMode) {
+    private func cancelReview(_ mode: ReviewMode, dismissed: Bool = false) {
         let host = reviewHost
         reviewHost = nil
-        host?.dismiss(animated: true)
+        reviewMode = nil
+        reviewState = nil
+        if !dismissed {
+            host?.dismiss(animated: true)
+        }
         switch mode {
         case let .composer(rowId):
             model.rows.removeAll { $0.id == rowId }
@@ -505,14 +614,23 @@ final class IntakeController: NSObject {
         }
     }
 
-    private var thumbnails: [String: UIImage] = [:]
+    /// The decoded S6 thumbnails (§E6: an `NSCache`, which also gives memory back under pressure).
+    private let thumbnails: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 60
+        return cache
+    }()
 
     func thumbnail(_ url: String) async -> UIImage? {
-        if let cached = thumbnails[url] { return cached }
+        if let cached = thumbnails.object(forKey: url as NSString) { return cached }
         guard let data = await images.fetch(url, dev: AppConfig.devPolicy, maxPixels: 600), let image = UIImage(data: data) else { return nil }
-        if thumbnails.count > 60 { thumbnails.removeAll() }
-        thumbnails[url] = image
+        thumbnails.setObject(image, forKey: url as NSString)
         return image
+    }
+
+    /// `didReceiveMemoryWarningNotification`: the thumbnails go (they are fetched again when shown).
+    func memoryWarning() {
+        thumbnails.removeAllObjects()
     }
 
     func refImage(_ ref: String?) -> UIImage? {
@@ -529,6 +647,8 @@ final class IntakeController: NSObject {
             let choice = IntakeChoices.make(product: product, chosen: state.chosen, title: state.title, withBrand: state.withBrand, quantity: state.quantity, image: image, source: source)
             let host = self.reviewHost
             self.reviewHost = nil
+            self.reviewMode = nil
+            self.reviewState = nil
             host?.dismiss(animated: true)
             switch mode {
             case let .composer(rowId):
@@ -606,6 +726,19 @@ final class IntakeController: NSObject {
     /// «دریافت اطلاعات» on a line (F2): with a product S6 only; without one S5 over the modal, then `intake.fetch` with
     /// the capture on the same page, then S6.
     private func intakeLine(body: JSONObject, from panel: Panel, reply: BridgeReply) {
+        // Busy only while a screen is really up (one UIKit took away with the modal is not, fixer 2026-10-24).
+        if !isOpen(readerNav) {
+            readerNav = nil
+            reader = nil
+        }
+        if !isOpen(reviewHost) {
+            reviewHost = nil
+            reviewMode = nil
+            reviewState = nil
+        }
+        if let open = line, readerNav == nil, reviewHost == nil, !open.reply.reachable || open.panel.destroyed {
+            line = nil
+        }
         if line != nil || readerNav != nil || reviewHost != nil {
             reply.error("busy")
             return
@@ -653,6 +786,38 @@ final class IntakeController: NSObject {
         } else {
             // The page that asked is gone (a reload, a killed WebContent process): the choice waits 15 minutes.
             pendingChoice = (lineKey: lineKey, choice: choice, at: SystemClock().wallMs())
+        }
+    }
+}
+
+/// S4 and S6 follow the swipe down (fixer 2026-10-24, the HIG; the Android S6 is a draggable bottom sheet): S4 closes
+/// when nothing would be lost (no product, no link being read), else the swipe asks like «بستن»; S6 cancels like
+/// «انصراف» unless its photo is being saved.
+extension IntakeController: UIAdaptivePresentationControllerDelegate {
+    func presentationControllerShouldDismiss(_ presentationController: UIPresentationController) -> Bool {
+        let presented = presentationController.presentedViewController
+        if presented === composer {
+            return basket.state.lines.isEmpty && model.rows.allSatisfy { $0.state == .shared || $0.state == .failed }
+        }
+        if presented === reviewHost {
+            return reviewState?.saving != true
+        }
+        return true
+    }
+
+    func presentationControllerDidAttemptToDismiss(_ presentationController: UIPresentationController) {
+        if presentationController.presentedViewController === composer {
+            closeComposer()
+        }
+    }
+
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        let presented = presentationController.presentedViewController
+        if presented === composer {
+            composer = nil
+            store.save()
+        } else if presented === reviewHost, let mode = reviewMode {
+            cancelReview(mode, dismissed: true)
         }
     }
 }

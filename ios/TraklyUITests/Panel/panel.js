@@ -160,6 +160,15 @@
 
     function applyTheme(resolved) {
         root.classList.toggle('dark', resolved === 'dark');
+        // For the UI tests: the theme the page applies, read through accessibility (not drawn).
+        let marker = document.getElementById('theme-state');
+        if (!marker) {
+            marker = document.createElement('span');
+            marker.id = 'theme-state';
+            marker.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap';
+            document.body.appendChild(marker);
+        }
+        marker.textContent = resolved === 'dark' ? 'theme-dark' : 'theme-light';
     }
 
     function applyInsets(insets) {
@@ -340,7 +349,8 @@
         appState: () => undefined,
         'intake.fetch': ({ url, capture }) => fakeRead(url, capture),
         'intake.offer': async ({ intakeId }) => {
-            if (!isOrderForm()) return { ok: false };
+            // As the real panel: the quick order form (Quick.tsx) has no line editor and answers {ok: false}.
+            if (!isOrderForm() || location.pathname === '/app/orders/quick') return { ok: false };
             await take(intakeId);
             return { ok: true };
         },
@@ -562,7 +572,9 @@
                 take(params.get('intake'));
             } else {
                 if (!params.get('blank')) restoreDraft();
-                addLine();
+                const first = addLine();
+                const prefill = document.getElementById('lines')?.dataset.prefill;
+                if (first && prefill) first.querySelector('.line-url').value = prefill;
                 request('intake.pending', {}).then((reply) => {
                     if (reply?.ok && reply.choice) {
                         const element = document.querySelector(`[data-line="${reply.lineKey}"]`) || addLine(reply.lineKey);

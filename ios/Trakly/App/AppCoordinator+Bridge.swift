@@ -36,7 +36,13 @@ extension AppCoordinator: BridgeDelegate {
     func confirm(_ type: String, body: JSONObject, from panel: Panel, completion: @escaping (Bool) -> Void) {
         switch type {
         case "lock.set":
-            lock.authenticate(reason: L.s("lock_change_reason"), completion: completion)
+            if lock.deviceHasNoPasscode && body.bool("enabled") != true {
+                // Nothing to check against on a device without a passcode, and the lock is off there already (§E9,
+                // fixer 2026-10-24): switching it off passes; switching it on still needs the prompt (it fails).
+                completion(true)
+            } else {
+                lock.authenticate(reason: L.s("lock_change_reason"), completion: completion)
+            }
         case "shopdata.clear":
             let alert = Alerts.make(title: L.s("clear_data_title"), message: L.s("clear_data_body"))
             alert.addAction(UIAlertAction(title: L.s("cancel_dialog"), style: .cancel) { _ in completion(false) })
@@ -74,9 +80,16 @@ extension AppCoordinator: BridgeDelegate {
             lock.setEnabled(body.bool("enabled") == true)
             reply.ok()
         case "shopdata.clear":
-            ReaderWebView.clearShopData { [weak self] in
-                reply.ok(JSONObject([("signedOut", .bool(false))]))
-                self?.toast(L.s("clear_data_done"))
+            // The reader WebView is released first (§E5); a store WebKit could not remove answers `failed`, without the
+            // «داده سایت ها پاک شد» toast (fixer 2026-10-24).
+            intake.closeReader()
+            ReaderWebView.clearShopData { [weak self] removed in
+                if removed {
+                    reply.ok(JSONObject([("signedOut", .bool(false))]))
+                    self?.toast(L.s("clear_data_done"))
+                } else {
+                    reply.error("failed")
+                }
             }
         default:
             reply.error("unsupported")
@@ -171,16 +184,17 @@ extension AppCoordinator: BridgeDelegate {
         reply.ok()
     }
 
-    /// A short native message at the bottom (the copy's texts only).
+    /// A short native message at the bottom (the copy's texts only), in the window above every sheet (S4 is up when
+    /// «شما اجازه ثبت سفارش ندارید.» or «محصول های انتخاب شده هنوز اینجا هستند.» comes, fixer 2026-10-24).
     func toast(_ text: String) {
-        Toast.show(text, in: root.view)
+        Toast.show(text, in: window)
     }
 }
 
 extension AppCoordinator: PanelEvents {
     func panelDocumentStarted(_ panel: Panel) {
         if panel === selectedPanel || panel === modalPanel {
-            root.removeOverlay(tag: Overlay.offline)
+            covers.remove(tag: Overlay.offline)
         }
         refreshChrome()
     }
@@ -240,5 +254,17 @@ extension AppCoordinator: PanelEvents {
             stack.detachPanel(resetHistory: true)
         }
         intake.panelDestroyed(panel)
+        // The per-panel state goes with it: a later panel may get the same identifier (fixer 2026-10-24).
+        let id = ObjectIdentifier(panel)
+        refreshTimers.removeValue(forKey: id)?.invalidate()
+        snapshotTimers.removeValue(forKey: id)?.invalidate()
+        scrollObservations.removeValue(forKey: id)?.invalidate()
+        lastSentInsets.removeValue(forKey: id)
+        if let control = refreshControls.removeValue(forKey: id) {
+            control.endRefreshing()
+            if panel.webView.scrollView.refreshControl === control {
+                panel.webView.scrollView.refreshControl = nil
+            }
+        }
     }
 }

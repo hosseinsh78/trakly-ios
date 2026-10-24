@@ -151,6 +151,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         TraklyAppGroup: $(TRAKLY_APP_GROUP)
+        # Debug only (the local fixture shops of the UI tests): the Release build removes it (the script phase below).
+        TraklyDevPolicy: $(TRAKLY_DEV_POLICY)
         UIAppFonts:
           - Vazirmatn-Regular.ttf
           - Vazirmatn-Bold.ttf
@@ -175,6 +177,13 @@ targets:
       configs:
         Release:
           PROVISIONING_PROFILE_SPECIFIER: $(TRAKLY_SHARE_PROFILE)
+    postBuildScripts:
+      - name: The dev policy only in Debug
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "${CONFIGURATION}" != "Debug" ]; then
+            /usr/libexec/PlistBuddy -c "Delete :TraklyDevPolicy" "${TARGET_BUILD_DIR}/${INFOPLIST_PATH}" 2>/dev/null || true
+          fi
 
   TraklyTests:
     type: bundle.unit-test

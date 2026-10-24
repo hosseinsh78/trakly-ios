@@ -17,6 +17,20 @@ enum PanelWebViewFactory {
         return text.replacingOccurrences(of: "var ORIGIN = 'https://erp.trakly.info';", with: "var ORIGIN = '\(AppConfig.origin)';")
     }()
 
+    /// The width of the app's window in points (set by the coordinator; the zoom below keeps a 320 CSS px layout).
+    static var windowWidth: CGFloat = 0
+
+    /// The panel pages follow the system text size (fixer 2026-10-24, the iOS side of §D5 "Text size", where Android
+    /// sets `textZoom` 100–130 from the font scale): the page zoom is the body text's scale, at least 1, at most 1.3,
+    /// and never so large that the page is laid out narrower than 320 CSS px (an iPhone SE stops at about 1.17). The
+    /// print WebView keeps 1 (paper does not follow the phone's text size).
+    static func pageZoom() -> CGFloat {
+        let scale = UIFontMetrics(forTextStyle: .body).scaledValue(for: 100) / 100
+        let width = windowWidth
+        let widest = width > 0 ? max(1, width / 320) : 1.3
+        return (min(max(scale, 1), 1.3, widest) * 100).rounded() / 100
+    }
+
     /// A panel WebView. `bridge` nil: a WebView of the panel without the bridge (the offscreen print WebView, §E9).
     static func make(bridge: BridgeHub?) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -48,6 +62,9 @@ enum PanelWebViewFactory {
         webView.backgroundColor = Theme.canvas
         webView.isOpaque = false
         webView.translatesAutoresizingMaskIntoConstraints = false
+        if bridge != nil {
+            webView.pageZoom = pageZoom()
+        }
         return webView
     }
 }

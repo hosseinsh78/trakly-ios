@@ -3,11 +3,13 @@ import UIKit
 
 /// Who confirms the user (docs/specs/phase10-apps-and-stores.md D21, §E9): Face ID / Touch ID with the device passcode
 /// as the fallback (`LAContext`, `.deviceOwnerAuthentication`); in a Debug UI test run a fake behind the launch argument
-/// `-TraklyFakeAuth success|failure` (real Face ID only in the owner's iPhone test, §O11).
+/// `-TraklyFakeAuth success|failure|once|nopasscode` (real Face ID only in the owner's iPhone test, §O11).
 @MainActor
 protocol Authenticator: AnyObject {
     /// Whether the device can authenticate at all (no passcode set: false).
     var available: Bool { get }
+    /// The device has no passcode (Face ID and Touch ID go with it): it cannot hold an app lock (§E9, fixer 2026-10-24).
+    var passcodeMissing: Bool { get }
     func authenticate(reason: String, completion: @escaping (Bool) -> Void)
 }
 
@@ -16,6 +18,12 @@ final class DeviceAuthenticator: Authenticator {
     var available: Bool {
         var error: NSError?
         return LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
+    }
+
+    var passcodeMissing: Bool {
+        var error: NSError?
+        let possible = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: &error)
+        return !possible && error?.domain == LAErrorDomain && error?.code == LAError.Code.passcodeNotSet.rawValue
     }
 
     func authenticate(reason: String, completion: @escaping (Bool) -> Void) {
@@ -44,21 +52,24 @@ final class DeviceAuthenticator: Authenticator {
     }
 }
 
-/// The UI tests' authenticator (Debug only): answers at once with the launch argument's result.
+/// The UI tests' authenticator (Debug only), after 300 ms: `success`, `failure`, `once` (the first prompt succeeds, every
+/// later one fails: unlock at launch, then a locked return) or `nopasscode` (a device without a passcode).
 @MainActor
 final class FakeAuthenticator: Authenticator {
-    let succeeds: Bool
+    let mode: String
     private(set) var prompts = 0
 
-    init(succeeds: Bool) {
-        self.succeeds = succeeds
+    init(mode: String) {
+        self.mode = mode
     }
 
-    var available: Bool { true }
+    var available: Bool { mode != "nopasscode" }
+
+    var passcodeMissing: Bool { mode == "nopasscode" }
 
     func authenticate(reason: String, completion: @escaping (Bool) -> Void) {
         prompts += 1
-        let result = succeeds
+        let result = mode == "success" || (mode == "once" && prompts == 1)
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 300_000_000)
             completion(result)
@@ -71,7 +82,7 @@ enum Authenticators {
     static func make() -> Authenticator {
         #if DEBUG
             if let fake = AppConfig.testArgument("TraklyFakeAuth") {
-                return FakeAuthenticator(succeeds: fake == "success")
+                return FakeAuthenticator(mode: fake)
             }
         #endif
         return DeviceAuthenticator()

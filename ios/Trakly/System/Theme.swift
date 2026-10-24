@@ -128,19 +128,21 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// The secondary button: the surface with a hairline, ink text.
+/// The secondary button: the surface with a hairline, ink text; disabled, ink-3 text at half strength (DESIGN.md: a
+/// disabled control fades; fixer 2026-10-24, it used to look enabled).
 struct SecondaryButtonStyle: ButtonStyle {
     var destructive = false
+    @Environment(\.isEnabled) private var enabled
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(Theme.swiftUIFont(15, bold: true, relativeTo: .subheadline))
-            .foregroundStyle(Color(destructive ? Theme.dangerInk : Theme.ink))
+            .foregroundStyle(Color(enabled ? (destructive ? Theme.dangerInk : Theme.ink) : Theme.ink3))
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 12)
             .background(Color(Theme.surface))
             .overlay(RoundedRectangle(cornerRadius: Theme.controlRadius, style: .continuous).stroke(Color(Theme.lineStrong), lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: Theme.controlRadius, style: .continuous))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(enabled ? (configuration.isPressed ? 0.7 : 1) : 0.5)
     }
 }

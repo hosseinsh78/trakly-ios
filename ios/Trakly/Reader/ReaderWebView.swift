@@ -34,12 +34,34 @@ enum ReaderWebView {
     /// The private content world of the reader asset (the page cannot see or change it).
     static let world = WKContentWorld.world(name: "trakly-reader")
 
-    /// «پاک کردن داده سایت ها» (§E5): the reader's whole store goes at the next idle moment (no reader WebView is
-    /// alive then); the Trakly session is never touched.
-    static func clearShopData(completion: @escaping () -> Void) {
-        WKWebsiteDataStore.remove(forIdentifier: storeId) { _ in
+    /// «پاک کردن داده سایت ها» (§E5): the reader's whole store goes (the caller released the reader WebView first); the
+    /// Trakly session is never touched. WebKit refuses a store still in use (its network process may hold it a moment
+    /// after the last WebView): once more after half a second, then `completion(false)` (fixer 2026-10-24).
+    static func clearShopData(completion: @escaping (Bool) -> Void) {
+        let id = storeId
+        WKWebsiteDataStore.fetchAllDataStoreIdentifiers { identifiers in
+            let exists = identifiers.contains(id)
             Task { @MainActor in
-                completion()
+                if exists {
+                    remove(attemptsLeft: 2, completion: completion)
+                } else {
+                    // Never made (no shop was read yet): nothing to remove.
+                    completion(true)
+                }
+            }
+        }
+    }
+
+    private static func remove(attemptsLeft: Int, completion: @escaping (Bool) -> Void) {
+        WKWebsiteDataStore.remove(forIdentifier: storeId) { error in
+            let failed = error != nil
+            Task { @MainActor in
+                if failed && attemptsLeft > 1 {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    remove(attemptsLeft: attemptsLeft - 1, completion: completion)
+                } else {
+                    completion(!failed)
+                }
             }
         }
     }

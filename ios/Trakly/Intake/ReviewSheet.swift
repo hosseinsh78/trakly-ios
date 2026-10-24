@@ -52,7 +52,8 @@ struct ReviewActions {
 
 /// S6 «انتخاب مشخصات» (§B6, §E6): exactly the fields and the copy of the web import dialog: the host and brand chips,
 /// «عکس قلم», «شرح کالا» (its direction from its content), each option's chips (struck through and «در سایت ناموجود» when
-/// unavailable; the chip area capped at 176 pt), the brand switch, «قیمت در سایت:» as a LTR run, the unavailable
+/// unavailable; chips 44 pt high, the chip area capped at 176 pt), the brand switch, «قیمت در سایت:» as a LTR run in
+/// Persian digits like the web dialog, the unavailable
 /// combination, «تعداد» (composer only), and the buttons pinned in a footer outside the scroll area.
 struct ReviewSheet: View {
     @ObservedObject var state: ReviewState
@@ -82,7 +83,7 @@ struct ReviewSheet: View {
                             Text(L.s("review_price"))
                                 .font(Theme.swiftUIFont(14))
                                 .foregroundStyle(Color(Theme.ink2))
-                            Text(price)
+                            Text(Fa.digits(price))
                                 .font(Theme.swiftUIFont(14, bold: true))
                                 .foregroundStyle(Color(Theme.ink))
                                 .environment(\.layoutDirection, .leftToRight)
@@ -241,7 +242,7 @@ struct ReviewSheet: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
                 .foregroundStyle(Color(selected ? Theme.onInk : (available ? Theme.ink : Theme.ink3)))
-                .frame(maxWidth: .infinity, minHeight: 40)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .padding(.horizontal, 8)
                 .background(Color(selected ? Theme.ink : Theme.surface2), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Color(selected ? Theme.ink : Theme.line), lineWidth: 1))

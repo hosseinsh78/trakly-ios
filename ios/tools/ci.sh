@@ -117,7 +117,7 @@ case "${1:-}" in
     xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
     case "$PASS" in
       flows) ONLY="-only-testing:TraklyUITests/FlowTests" ;;
-      shots) ONLY="-only-testing:TraklyUITests/ScreenshotTests/testTheNativeScreens" ;;
+      shots) ONLY="-only-testing:TraklyUITests/ScreenshotTests/testTheNativeScreens -only-testing:TraklyUITests/ScreenshotTests/testTheShareExtensionSheet" ;;
       large) ONLY="-only-testing:TraklyUITests/ScreenshotTests/testTheShellAtALargeTextSize" ;;
       ios17) ONLY="-only-testing:TraklyUITests/FlowTests/testLaunchSignInAndTabs -only-testing:TraklyUITests/FlowTests/testComposerReaderReviewAndTheOrderForm -only-testing:TraklyUITests/FlowTests/testClearingShopData" ;;
       *) echo "unknown pass $PASS" >&2; exit 2 ;;

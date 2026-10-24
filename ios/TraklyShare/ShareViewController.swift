@@ -6,11 +6,34 @@ import UniformTypeIdentifiers
 /// first product link for the app (`shared-links.json` in the App Group, at most 10, 24 hours), shows
 /// «به Trakly اضافه شد؛ برای ادامه Trakly را باز کنید» and completes; without a link «در متنی که فرستادید لینک محصول پیدا
 /// نشد.». No JavaScript preprocessing, no notification, and it never tries to open the app (v1, P3).
+///
+/// Fixer, 2026-10-24: presented over the full screen (the share sheet's own app stays visible under a light dim with
+/// the card centred); the default sheet presentation of a custom extension controller would have drawn the dim inside
+/// a sheet. A Debug build also takes the local fixture shops (the CI screenshot of the sheet, §L4).
 final class ShareViewController: UIViewController {
     private let card = UIStackView()
     private let icon = UIImageView()
     private let message = UILabel()
     private var finished = false
+
+    override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
+        super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
+        modalPresentationStyle = .overFullScreen
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        modalPresentationStyle = .overFullScreen
+    }
+
+    /// The local fixture shops of the UI tests (`TRAKLY_DEV_POLICY`, Debug only, as the app's AppConfig.devPolicy).
+    private static let devPolicy: Bool = {
+        #if DEBUG
+            return (Bundle.main.object(forInfoDictionaryKey: "TraklyDevPolicy") as? String) == "YES"
+        #else
+            return false
+        #endif
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -26,6 +49,7 @@ final class ShareViewController: UIViewController {
         message.font = UIFontMetrics(forTextStyle: .headline).scaledFont(for: UIFont(name: "Vazirmatn-Bold", size: 17) ?? .boldSystemFont(ofSize: 17))
         message.text = NSLocalizedString("share_title", comment: "")
         message.accessibilityIdentifier = "share.message"
+        card.accessibilityIdentifier = "share.card"
 
         card.axis = .vertical
         card.alignment = .center
@@ -48,7 +72,7 @@ final class ShareViewController: UIViewController {
 
         Task { @MainActor in
             let text = await self.sharedText()
-            if let url = LinkText.firstProductUrl(text), PendingShares.add(url) {
+            if let url = LinkText.firstProductUrl(text, dev: ShareViewController.devPolicy), PendingShares.add(url) {
                 self.show(NSLocalizedString("share_saved", comment: ""), symbol: "checkmark.circle.fill", success: true)
             } else {
                 self.show(NSLocalizedString("share_no_link", comment: ""), symbol: "link.badge.plus", success: false)

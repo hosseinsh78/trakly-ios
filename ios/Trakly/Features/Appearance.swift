@@ -43,7 +43,8 @@ enum QuickActions {
     }
 }
 
-/// A short message at the bottom of the screen (native texts of the copy only).
+/// A short message at the bottom of the screen (native texts of the copy only). Shown in the window and drawn above
+/// its other views, so a sheet presented a moment later (S4) does not cover it.
 @MainActor
 enum Toast {
     static func show(_ text: String, in host: UIView?) {
@@ -58,6 +59,7 @@ enum Toast {
         label.alpha = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         label.accessibilityIdentifier = "toast"
+        label.layer.zPosition = 1000
         host.addSubview(label)
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: host.centerXAnchor),

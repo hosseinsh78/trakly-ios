@@ -99,14 +99,16 @@ final class TabBarController: UITabBarController, UITabBarControllerDelegate {
     }
 }
 
-/// The window's root (§E3): the tab bar controller, and above it the launch cover, the offline and update screens and
-/// the lock cover; the slim offline banner over the content.
+/// The window's root (§E3): the tab bar controller, the launch cover above it and the slim offline banner over the
+/// content. The offline and update screens and the lock cover are in their own window above everything (CoverWindow).
 @MainActor
 final class RootViewController: UIViewController {
     let tabs: TabBarController
     private let overlays = UIView()
     private let banner = UILabel()
     private var bannerVisible = false
+    /// The light or dark trait changed (the system appearance with «ظاهر» = system, §E3).
+    var onStyleChange: (() -> Void)?
 
     init(tabs: TabBarController) {
         self.tabs = tabs
@@ -149,9 +151,13 @@ final class RootViewController: UIViewController {
         overlays.backgroundColor = .clear
         view.addSubview(overlays)
         overlays.isHidden = true
+
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (controller: RootViewController, _: UITraitCollection) in
+            controller.onStyleChange?()
+        }
     }
 
-    /// A full-screen layer above the tabs (the launch cover, S7, S8, the lock cover); the newest is on top.
+    /// A full-screen layer above the tabs (the launch cover); the newest is on top.
     func showOverlay(_ child: UIViewController, tag: String) {
         removeOverlay(tag: tag)
         addChild(child)

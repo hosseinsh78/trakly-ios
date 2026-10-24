@@ -9,7 +9,9 @@ import UniformTypeIdentifiers
 /// allows it, at most 8 MiB, every resolved address public before the request and the connected remote address
 /// (`URLSessionTaskTransactionMetrics.remoteAddress`) public before the body is accepted, the image type checked by its
 /// bytes and the picture re-encoded as JPEG of at most 2048 px (quality 0.85). A Debug build's local fixture shops
-/// are loopback by design and skip only the address checks.
+/// are loopback by design and skip only the address checks. Through the user's own HTTP proxy (a VPN client's system
+/// proxy on 127.0.0.1, `isProxyConnection`) the connected address is the proxy's: the address check made before the
+/// request stands for it (fixer 2026-10-24, §I3).
 final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private final class Job {
         var data = Data()
@@ -175,7 +177,12 @@ final class ImageFetcher: NSObject, URLSessionDataDelegate, @unchecked Sendable 
             job.addressChecked = true
             return
         }
-        let remote = metrics.transactionMetrics.last { $0.remoteAddress != nil }?.remoteAddress
+        let transaction = metrics.transactionMetrics.last { $0.remoteAddress != nil } ?? metrics.transactionMetrics.last
+        if transaction?.isProxyConnection == true {
+            job.addressChecked = true
+            return
+        }
+        let remote = transaction?.remoteAddress
         if let remote, let bytes = ImageAddress.bytes(ofNumericAddress: remote), ImageAddress.isPublic(bytes) {
             job.addressChecked = true
         } else {

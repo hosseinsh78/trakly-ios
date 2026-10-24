@@ -5,7 +5,8 @@ import XCTest
 /// the plus button, a pushed page, a 404 page with the tab bar, More, S4 empty / with the draft row / with a shared
 /// link / with a basket / with a failed row / in merge mode, S5 loading / found / challenge / error, S6 with options and
 /// with 20+ sizes, the modal form and its keyboard and dirty confirm, Quick Look, the print preview, the scanner's
-/// unavailable state, the update and offline screens, the setup wizard and the lock cover. Every shot is an
+/// unavailable state, the update and offline screens, the setup wizard and the lock cover, and (fixer 2026-10-24) a
+/// toast over S4, the lock cover over the open order form and the Share extension sheet over Safari. Every shot is an
 /// attachment named `<device>-<appearance>-<nn-name>.png`.
 final class ScreenshotTests: XCTestCase {
     override func setUp() {
@@ -129,6 +130,11 @@ final class ScreenshotTests: XCTestCase {
         Thread.sleep(forTimeInterval: 1)
         shot("15-s4-failed", app)
 
+        // A toast while S4 is up (the read answers `permission`): above the sheet.
+        type(app, link: "/dev/shop/forbidden")
+        Thread.sleep(forTimeInterval: 1.2)
+        shot("15b-s4-toast", app, settle: 0)
+
         type(app, link: "/dev/shop/challenge?after=60000")
         _ = app.descendants(matching: .any)["reader.challenge"].waitForExistence(timeout: 30)
         shot("16-s5-challenge", app, settle: 0.5)
@@ -232,6 +238,59 @@ final class ScreenshotTests: XCTestCase {
         _ = lock.buttons["lock.open"].waitForExistence(timeout: 15)
         shot("27-lock-cover", lock, settle: 1)
         lock.terminate()
+
+        // The lock cover over an open order form (the launch prompt passes, the return locks).
+        let locked = launch(["-TraklyLock", "on", "-TraklyFakeAuth", "once", "-TraklyLockAfterMs", "0"])
+        signIn(locked)
+        if tapWhenReady(locked.webViews.links["سفارش سریع"], 25), locked.navigationBars.buttons["modal.close"].waitForExistence(timeout: 15) {
+            XCUIDevice.shared.press(.home)
+            locked.activate()
+            _ = locked.buttons["lock.open"].waitForExistence(timeout: 15)
+            shot("27b-lock-over-form", locked, settle: 1)
+        }
+        locked.terminate()
+    }
+
+    /// Taps the first element of `app` whose identifier or label is one of `names`.
+    @discardableResult
+    private func tapFirst(_ app: XCUIApplication, _ names: [String], timeout: TimeInterval = 3) -> Bool {
+        let match = app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@ OR label IN %@", names, names)).firstMatch
+        guard match.waitForExistence(timeout: timeout), match.isHittable else { return false }
+        match.tap()
+        return true
+    }
+
+    /// The Share extension sheet (§L4): Safari on a fixture shop, Share, «Trakly». Safari's own controls follow the
+    /// Simulator's language (English) and differ between iOS versions, so each step tries the known names; a step that
+    /// is not found leaves the shot out (`28-share-sheet` missing in the report) instead of failing the pass.
+    func testTheShareExtensionSheet() {
+        // The app is installed and its pending shares are cleared.
+        let app = launch()
+        app.terminate()
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        safari.launch()
+        for _ in 0 ..< 3 {
+            if !tapFirst(safari, ["Continue", "Not Now", "Close", "OK"], timeout: 2) { break }
+        }
+        safari.open(URL(string: StandIn.origin + "/dev/shop/server-tee")!)
+        _ = safari.webViews.staticTexts["Linen Tee"].firstMatch.waitForExistence(timeout: 30)
+        Thread.sleep(forTimeInterval: 1)
+        if !tapFirst(safari, ["ShareButton", "Share"]) {
+            _ = tapFirst(safari, ["MoreButton", "More", "PageMenuButton", "Page Menu", "TabOverviewMoreButton"])
+            _ = tapFirst(safari, ["ShareButton", "Share"])
+        }
+        let trakly = safari.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Trakly")).firstMatch
+        if !trakly.waitForExistence(timeout: 10) {
+            shot("28-share-sheet-missing", safari, settle: 0)
+            return
+        }
+        if !trakly.isHittable {
+            safari.collectionViews.firstMatch.swipeLeft()
+        }
+        trakly.tap()
+        // The extension's card shows for about 1.6 s, then the sheet completes by itself.
+        Thread.sleep(forTimeInterval: 0.9)
+        shot("28-share-sheet", safari, settle: 0)
     }
 
     /// One pass at a large Dynamic Type size (§L4 "Dynamic Type at a large size once").

@@ -9,6 +9,8 @@ struct ComposerView: View {
     @ObservedObject var model: ComposerModel
     let actions: ComposerActions
     @FocusState private var linkFocused: Bool
+    /// The typed link follows the text size like the rest of S4 (a Latin URL in the system font, left to right).
+    @ScaledMetric(relativeTo: .body) private var linkSize: CGFloat = 16
 
     var body: some View {
         NavigationStack {
@@ -129,7 +131,7 @@ struct ComposerView: View {
     private var linkField: some View {
         HStack(spacing: 10) {
             TextField("", text: $model.link, prompt: Text(L.s("composer_hint")).font(Theme.swiftUIFont(15)).foregroundColor(Color(Theme.ink3)))
-                .font(.system(size: 16, design: .default))
+                .font(.system(size: linkSize))
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -203,8 +205,11 @@ struct ComposerView: View {
             Button {
                 actions.removeRow(row.id)
             } label: {
+                // 44 × 44 pt (DESIGN.md native metrics), not only the glyph.
                 Image(systemName: "xmark.circle.fill")
                     .foregroundStyle(Color(Theme.ink3))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(L.s("composer_row_remove"))
@@ -249,6 +254,8 @@ struct ComposerView: View {
                     } label: {
                         Image(systemName: "trash")
                             .foregroundStyle(Color(Theme.dangerInk))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderless)
                     .accessibilityLabel(L.s("composer_row_remove"))
