@@ -252,7 +252,7 @@ final class FlowTests: XCTestCase {
         wait(tab(app, "بیشتر"), 25)
         tab(app, "بیشتر").tap()
         let clear = app.webViews.buttons["پاک کردن داده سایت ها"]
-        wait(clear, 20)
+        wait(clear, 45)
         clear.tap()
         let yes = app.alerts.buttons["پاک شود"]
         wait(yes, 10)

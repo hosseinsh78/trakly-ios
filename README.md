@@ -23,3 +23,6 @@ runs on Linux.
 
 Copyright (c) 2026 Trakly. All rights reserved. The source is published for transparency and continuous integration
 only; no licence is granted to use, copy, modify or distribute it.
+
+The Vazirmatn font files in `ios/Trakly/Resources/Fonts/` are third-party work under the SIL Open Font License 1.1
+(`OFL.txt` beside them); the rights statement above does not cover them.

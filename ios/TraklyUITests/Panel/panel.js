@@ -589,7 +589,7 @@
         hello = reply;
         applyTheme(reply.appearance?.resolved);
         applyInsets(reply.insets);
-        notify('config', { topology: reply.topology || 'stacks', disabled: [], min: meta.min || 0, storeUrl: null, accountKey: meta.context === 'auth' ? null : meta.accountKey });
+        notify('config', { topology: reply.topology || 'stacks', disabled: [], min: meta.min || 0, storeUrl: meta.min ? 'https://apps.apple.com/app/trakly/id0000000000' : null, accountKey: meta.context === 'auth' ? null : meta.accountKey });
         publish(true);
     }
 
