@@ -19,6 +19,9 @@ final class Printer {
         navigation.modalPresentationStyle = .fullScreen
         navigation.view.semanticContentAttribute = .forceRightToLeft
         navigation.navigationBar.semanticContentAttribute = .forceRightToLeft
+        navigation.toolbar.semanticContentAttribute = .forceRightToLeft
+        // The actions sit in the bottom toolbar, so the title keeps the whole bar (it was cut beside them).
+        navigation.isToolbarHidden = false
         presenter.present(navigation, animated: true)
         reply?.ok()
     }
@@ -30,6 +33,7 @@ final class PrintPreviewController: UIViewController, WKNavigationDelegate {
     private let jobTitle: String
     private let webView = PanelWebViewFactory.make(bridge: nil)
     private let spinner = UIActivityIndicatorView(style: .medium)
+    private var shareItem: UIBarButtonItem?
     private var loaded = false
 
     init(url: URL, title: String) {
@@ -45,7 +49,9 @@ final class PrintPreviewController: UIViewController, WKNavigationDelegate {
         let shareItem = UIBarButtonItem(image: UIImage(systemName: "square.and.arrow.up"), style: .plain, target: self, action: #selector(shareTapped))
         shareItem.accessibilityLabel = L.s("print_share_pdf")
         shareItem.accessibilityIdentifier = "print.share"
-        navigationItem.rightBarButtonItems = [printItem, shareItem]
+        self.shareItem = shareItem
+        // Right to left: «اشتراک گذاری» at the leading end, the primary «چاپ یا ذخیره PDF» at the trailing end.
+        toolbarItems = [shareItem, .flexibleSpace(), printItem]
         navigationItem.largeTitleDisplayMode = .never
     }
 
@@ -120,7 +126,7 @@ final class PrintPreviewController: UIViewController, WKNavigationDelegate {
                 try? FileManager.default.createDirectory(at: Downloads.folder, withIntermediateDirectories: true)
                 guard (try? data.write(to: file, options: .atomic)) != nil else { return }
                 let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
-                sheet.popoverPresentationController?.barButtonItem = self.navigationItem.rightBarButtonItems?.last
+                sheet.popoverPresentationController?.barButtonItem = self.shareItem
                 self.present(sheet, animated: true)
             }
         }

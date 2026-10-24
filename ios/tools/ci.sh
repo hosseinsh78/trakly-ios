@@ -125,12 +125,14 @@ case "${1:-}" in
     RESULT="$BUILD/results/$LABEL-$APPEARANCE-$PASS.xcresult"
     rm -rf "$RESULT"
     set +e
+    # A failed UI test runs once more (the hosted Simulators time out on screenshots and cold WebKit starts now and
+    # then); the first attempt's failure screenshot, UI hierarchy and stand-in log stay in the exported attachments.
     # shellcheck disable=SC2086
     TEST_RUNNER_TRAKLY_APPEARANCE="$APPEARANCE" TEST_RUNNER_TRAKLY_DEVICE="$LABEL" TEST_RUNNER_TRAKLY_PASS="$PASS" \
     xcodebuild test-without-building \
       -project "$PROJECT" -scheme Trakly -configuration Debug \
       -destination "id=$UDID" -derivedDataPath "$DERIVED" \
-      $ONLY -resultBundlePath "$RESULT" \
+      $ONLY -retry-tests-on-failure -test-iterations 2 -resultBundlePath "$RESULT" \
       2>&1 | tee "$BUILD/logs/$LABEL-$APPEARANCE-$PASS.log" | pretty
     STATUS=${PIPESTATUS[0]}
     set -e

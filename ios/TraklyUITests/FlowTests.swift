@@ -249,6 +249,7 @@ final class FlowTests: XCTestCase {
     func testClearingShopData() {
         let app = launch()
         signIn(app)
+        wait(tab(app, "بیشتر"), 25)
         tab(app, "بیشتر").tap()
         let clear = app.webViews.buttons["پاک کردن داده سایت ها"]
         wait(clear, 20)

@@ -102,8 +102,10 @@ struct ComposerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
+                    // Ink like the close buttons of the other sheets (the brand stays for the primary actions).
                     Button(L.s("bar_close"), action: actions.close)
                         .font(Theme.swiftUIFont(17))
+                        .foregroundStyle(Color(Theme.ink))
                         .accessibilityIdentifier("composer.close")
                 }
             }

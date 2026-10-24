@@ -70,7 +70,8 @@ extension XCTestCase {
     func signIn(_ app: XCUIApplication) {
         let web = app.webViews.firstMatch
         let username = web.textFields.firstMatch
-        if !username.waitForExistence(timeout: 20) {
+        // The first launch on a cold Simulator (a new runtime) starts WebKit's processes slowly.
+        if !username.waitForExistence(timeout: 45) {
             return
         }
         username.tap()

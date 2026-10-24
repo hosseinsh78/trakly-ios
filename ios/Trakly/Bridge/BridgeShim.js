@@ -125,11 +125,12 @@
     Object.defineProperty(scope, 'TraklyNative', { value: native, writable: false, configurable: false, enumerable: false });
 
     // A page restored from WebKit's back-forward cache keeps its old scripts but is a new document for native, which
-    // then waits for a `hello` that never comes (no chrome updates, no intake host): such a page loads again.
+    // then waits for a `hello` that never comes (no chrome updates, no intake host): such a page loads again, as a GET
+    // of its address in place of the entry (a reload could send again the form that led to it, such as the sign-in).
     if (typeof scope.addEventListener === 'function') {
         scope.addEventListener('pageshow', function (event) {
             if (event && event.persisted) {
-                scope.location.reload();
+                scope.location.replace(scope.location.href);
             }
         });
     }
