@@ -61,7 +61,7 @@ final class FlowTests: XCTestCase {
         Thread.sleep(forTimeInterval: 1)
         for _ in 0 ..< 2 where !order.exists {
             let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.998, dy: 0.5))
-            start.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)), withVelocity: .default, thenHoldForDuration: 0.1)
+            start.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5)), withVelocity: .fast, thenHoldForDuration: 0.05)
             _ = order.waitForExistence(timeout: 5)
         }
         wait(order, 5)

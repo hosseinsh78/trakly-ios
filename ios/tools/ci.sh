@@ -136,6 +136,8 @@ case "${1:-}" in
       2>&1 | tee "$BUILD/logs/$LABEL-$APPEARANCE-$PASS.log" | pretty
     STATUS=${PIPESTATUS[0]}
     set -e
+    # The app's crash reports (a Simulator app's crash is written to the host's DiagnosticReports).
+    find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 1 -name 'Trakly*' -mmin -240 -exec cp {} "$BUILD/logs/" \; 2>/dev/null || true
     OUT="$BUILD/shots/$LABEL-$APPEARANCE-$PASS"
     mkdir -p "$OUT"
     xcrun xcresulttool export attachments --path "$RESULT" --output-path "$OUT" || true
