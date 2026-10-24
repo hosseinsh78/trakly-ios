@@ -42,7 +42,7 @@ enum ChromePresenter {
         }
 
         let isRoot = stack.nav.viewControllers.first === host
-        let signature = [chrome.createButton ? "create" : "", chrome.search ? "search" : "", chrome.action.map { "action:" + $0.id + ":" + $0.icon + ":" + $0.label } ?? "", chrome.backArrow && isRoot ? "back" : ""].joined(separator: "|")
+        let signature = buttonSignature(chrome, isRoot: isRoot)
         if host.drawnButtons != signature {
             host.drawnButtons = signature
             buttons(chrome, on: item, isRoot: isRoot, targets: targets)
@@ -54,6 +54,24 @@ enum ChromePresenter {
             stack.nav.setNavigationBarHidden(hideBar, animated: animated)
         }
         stack.statusBarStyle = chrome.lightStatusBar && chrome.fullScreen ? .lightContent : .default
+    }
+
+    /// What the bar buttons depend on (they are made again only when it changes).
+    private static func buttonSignature(_ chrome: PageState.Chrome, isRoot: Bool) -> String {
+        var parts: [String] = []
+        if chrome.createButton {
+            parts.append("create")
+        }
+        if chrome.search {
+            parts.append("search")
+        }
+        if let action = chrome.action {
+            parts.append("action:\(action.id):\(action.icon):\(action.label)")
+        }
+        if chrome.backArrow && isRoot {
+            parts.append("back")
+        }
+        return parts.joined(separator: "|")
     }
 
     private static func buttons(_ chrome: PageState.Chrome, on item: UINavigationItem, isRoot: Bool, targets: Targets) {

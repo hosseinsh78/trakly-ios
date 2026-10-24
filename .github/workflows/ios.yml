@@ -160,12 +160,14 @@ jobs:
           persist-credentials: false
 
       - name: Xcode, XcodeGen and the build for testing
+        id: build
         run: |
           bash ios/tools/ci.sh xcode
           bash ios/tools/ci.sh xcodegen
           bash ios/tools/ci.sh build
 
       - name: Panel stand-in and the Simulator
+        id: device
         run: |
           bash ios/tools/ci.sh server
           UDID="$(bash ios/tools/ci.sh device '${{ matrix.device }}' | tail -1)"
@@ -176,15 +178,15 @@ jobs:
         run: bash ios/tools/ci.sh ui "$UDID" light flows ${{ matrix.label }}
 
       - name: Screenshots (light)
-        if: always()
+        if: ${{ !cancelled() && steps.device.outcome == 'success' }}
         run: bash ios/tools/ci.sh ui "$UDID" light shots ${{ matrix.label }}
 
       - name: Screenshots (dark)
-        if: always()
+        if: ${{ !cancelled() && steps.device.outcome == 'success' }}
         run: bash ios/tools/ci.sh ui "$UDID" dark shots ${{ matrix.label }}
 
       - name: Large text (light)
-        if: always() && matrix.large
+        if: ${{ !cancelled() && steps.device.outcome == 'success' && matrix.large }}
         run: bash ios/tools/ci.sh ui "$UDID" light large ${{ matrix.label }}
 
       - name: Screenshots and logs

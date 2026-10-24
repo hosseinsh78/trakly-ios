@@ -26,11 +26,21 @@ final class DeviceAuthenticator: Authenticator {
             completion(false)
             return
         }
-        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, _ in
+        // The answer comes on another queue: it reaches `completion` through this main-actor object (no capture of the
+        // non-Sendable closure in the system's Sendable callback).
+        pending.append(completion)
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { [weak self] success, _ in
             Task { @MainActor in
-                completion(success)
+                self?.finish(success)
             }
         }
+    }
+
+    private var pending: [(Bool) -> Void] = []
+
+    private func finish(_ success: Bool) {
+        guard !pending.isEmpty else { return }
+        pending.removeFirst()(success)
     }
 }
 

@@ -119,15 +119,14 @@ enum TestHooks {
     static func queuedShares(_ done: @escaping () -> Void) {
         #if DEBUG
             if AppConfig.uiTest, let url = URL(string: AppConfig.origin + "/__test/share-queue") {
-                URLSession.shared.dataTask(with: url) { data, _, _ in
+                Task { @MainActor in
+                    let data = try? await URLSession.shared.data(from: url).0
                     let links = data.flatMap { Json.parseOrNil(String(decoding: $0, as: UTF8.self))?.stringList } ?? []
-                    Task { @MainActor in
-                        for link in links {
-                            PendingShares.add(link)
-                        }
-                        done()
+                    for link in links {
+                        PendingShares.add(link)
                     }
-                }.resume()
+                    done()
+                }
                 return
             }
         #endif

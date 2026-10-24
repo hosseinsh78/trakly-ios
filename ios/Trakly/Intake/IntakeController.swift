@@ -355,10 +355,9 @@ final class IntakeController: NSObject {
                 completion(JSONObject([("ok", .bool(false)), ("reason", .string("network")), ("message", .string(""))]))
                 return
             }
-            Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { [weak self] _ in
-                MainActor.assumeIsolated {
-                    self?.pageFetch(url: url, capture: capture, excluded: excluded, waited: waited + 250, completion: completion)
-                }
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 250_000_000)
+                self?.pageFetch(url: url, capture: capture, excluded: excluded, waited: waited + 250, completion: completion)
             }
             return
         }
