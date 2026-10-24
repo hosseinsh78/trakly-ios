@@ -68,16 +68,17 @@ final class ScreenshotTests: XCTestCase {
         let export = app.webViews.buttons["دریافت اکسل"]
         if export.waitForExistence(timeout: 10) {
             export.tap()
-            shot("21-quicklook", app, settle: 2.5)
-            app.swipeDown(velocity: .fast)
-            Thread.sleep(forTimeInterval: 1)
+            _ = quickLook(app).staticTexts["NR-1160"].firstMatch.waitForExistence(timeout: 20)
+            shot("21-quicklook", app, settle: 1)
+            closeQuickLook(app)
         }
         let print = app.webViews.buttons["چاپ فاکتور"]
         if print.waitForExistence(timeout: 10) {
             print.tap()
             _ = app.navigationBars["پیش نمایش چاپ"].waitForExistence(timeout: 15)
             shot("22-print", app, settle: 1.5)
-            app.navigationBars["پیش نمایش چاپ"].buttons.element(boundBy: 0).tap()
+            let closePrint = app.buttons["print.close"]
+            if closePrint.waitForExistence(timeout: 5) { closePrint.tap() }
         }
 
         app.tabBars.buttons["خانه"].tap()
@@ -86,8 +87,8 @@ final class ScreenshotTests: XCTestCase {
             stale.tap()
             _ = app.webViews.staticTexts["این صفحه پیدا نشد"].firstMatch.waitForExistence(timeout: 15)
             shot("06-error-404", app)
-            if app.navigationBars.buttons["chrome.back"].exists {
-                app.navigationBars.buttons["chrome.back"].tap()
+            if backButton(app).exists {
+                backButton(app).tap()
             }
         }
 
@@ -102,7 +103,7 @@ final class ScreenshotTests: XCTestCase {
         type(app, link: "/dev/shop/product-group")
         _ = app.navigationBars["خواندن محصول"].waitForExistence(timeout: 20)
         shot("11-s5-loading", app, settle: 0.6)
-        _ = app.otherElements["reader.found"].waitForExistence(timeout: 30)
+        _ = app.descendants(matching: .any)["reader.found"].waitForExistence(timeout: 30)
         shot("11b-s5-found", app, settle: 0.3)
         let add = app.buttons["review.add"]
         _ = add.waitForExistence(timeout: 30)
@@ -114,14 +115,14 @@ final class ScreenshotTests: XCTestCase {
         shot("13-s4-basket", app)
 
         type(app, link: "/dev/shop/plain")
-        _ = app.otherElements["reader.error"].waitForExistence(timeout: 40)
+        _ = app.descendants(matching: .any)["reader.error"].waitForExistence(timeout: 40)
         shot("14-s5-error", app)
         if app.buttons["reader.close"].exists { app.buttons["reader.close"].tap() }
         Thread.sleep(forTimeInterval: 1)
         shot("15-s4-failed", app)
 
         type(app, link: "/dev/shop/challenge?after=60000")
-        _ = app.otherElements["reader.challenge"].waitForExistence(timeout: 30)
+        _ = app.descendants(matching: .any)["reader.challenge"].waitForExistence(timeout: 30)
         shot("16-s5-challenge", app, settle: 0.5)
         closeSheets(app)
 
@@ -190,7 +191,7 @@ final class ScreenshotTests: XCTestCase {
                 scan.tap()
                 _ = app.staticTexts["scan.unavailable"].waitForExistence(timeout: 10)
                 shot("23-scan-unavailable", app)
-                app.navigationBars.buttons.element(boundBy: 0).tap()
+                app.buttons["scan.cancel"].tap()
             }
             if app.navigationBars.buttons["modal.close"].waitForExistence(timeout: 5) { app.navigationBars.buttons["modal.close"].tap() }
         }

@@ -83,7 +83,9 @@ final class Scanner: NSObject {
             content.view.backgroundColor = Theme.canvas
         }
         content.title = L.s("scan_title")
-        content.navigationItem.leftBarButtonItem = UIBarButtonItem(title: L.s("cancel"), style: .plain, target: self, action: #selector(cancelTapped))
+        let cancelItem = UIBarButtonItem(title: L.s("cancel"), style: .plain, target: self, action: #selector(cancelTapped))
+        cancelItem.accessibilityIdentifier = "scan.cancel"
+        content.navigationItem.leftBarButtonItem = cancelItem
         let navigation = UINavigationController(rootViewController: content)
         navigation.view.semanticContentAttribute = .forceRightToLeft
         navigation.navigationBar.semanticContentAttribute = .forceRightToLeft

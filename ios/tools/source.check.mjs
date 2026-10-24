@@ -133,6 +133,7 @@ function checkSwift(files, privacy) {
             check(!/UIApplication\.shared\.open\(/.test(body), `${name}: UIApplication.shared.open outside ExternalLinks.swift and UpdateRequiredView.swift`);
         }
         check(!/\b_WK[A-Za-z]|NSSelectorFromString|perform\(NSSelector|value\(forKey:\s*"_/.test(body), `${name}: private API`);
+        check(!/setValue\([^)]*forKey:\s*"(?:attributedTitle|attributedMessage|contentViewController|_)/.test(body), `${name}: a private styling key (KVC on a system view)`);
         if (name.startsWith('ios/TraklyShare/')) {
             check(!/\bopenURL\b|\.open\(/.test(body), `${name}: the share extension never opens the app or a URL`);
         }
@@ -246,6 +247,13 @@ function checkConfig() {
     if (manifests[0]) {
         check(manifests[0].includes('CA92.1'), 'the app privacy manifest: UserDefaults (CA92.1)');
         check(manifests[0].includes('C617.1'), 'the app privacy manifest: file timestamps (C617.1, the 24-hour cleanup)');
+        // §I8: every collected type, linked to the user, never for tracking, for the app's functionality only.
+        for (const type of ['Name', 'EmailAddress', 'PhoneNumber', 'PhysicalAddress', 'OtherUserContactInfo', 'OtherFinancialInfo', 'PurchaseHistory', 'PhotosorVideos', 'OtherUserContent', 'BrowsingHistory', 'UserID']) {
+            check(manifests[0].includes(`<string>NSPrivacyCollectedDataType${type}</string>`), `the app privacy manifest: the collected type ${type} (§I8)`);
+        }
+        const entries = manifests[0].split('<key>NSPrivacyCollectedDataType</key>').slice(1);
+        check(entries.every((entry) => /<key>NSPrivacyCollectedDataTypeLinked<\/key>\s*<true\/>/.test(entry) && /<key>NSPrivacyCollectedDataTypeTracking<\/key>\s*<false\/>/.test(entry)), 'the app privacy manifest: a collected type that is not linked or is used for tracking');
+        check(!/PurposeThirdPartyAdvertising|PurposeDeveloperAdvertising|PurposeAnalytics|PurposeProductPersonalization/.test(manifests[0]), 'the app privacy manifest: a purpose other than the app\'s functionality');
     }
 
     const icon = path.join(IOS, 'Trakly', 'Resources', 'Assets.xcassets', 'AppIcon.appiconset', 'AppIcon-1024.png');

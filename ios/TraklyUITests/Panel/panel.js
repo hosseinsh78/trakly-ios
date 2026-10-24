@@ -295,6 +295,8 @@
             }
             if (isOrderForm() && dirty) {
                 saveDraft();
+                // The kept draft reaches native with `tabs.draft` (S4 then offers «ادامه پیش نویس سفارش»).
+                publish(true);
                 notify('modal.close', {});
                 return { handled: true };
             }

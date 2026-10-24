@@ -37,7 +37,9 @@ final class PrintPreviewController: UIViewController, WKNavigationDelegate {
         jobTitle = title
         super.init(nibName: nil, bundle: nil)
         self.title = L.s("print_title")
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: L.s("bar_close"), style: .plain, target: self, action: #selector(closeTapped))
+        let closeItem = UIBarButtonItem(title: L.s("bar_close"), style: .plain, target: self, action: #selector(closeTapped))
+        closeItem.accessibilityIdentifier = "print.close"
+        navigationItem.leftBarButtonItem = closeItem
         let printItem = UIBarButtonItem(title: L.s("print_action"), style: .done, target: self, action: #selector(printTapped))
         printItem.accessibilityIdentifier = "print.print"
         let shareItem = UIBarButtonItem(image: UIImage(systemName: "square.and.arrow.up"), style: .plain, target: self, action: #selector(shareTapped))

@@ -1,17 +1,13 @@
 import UIKit
 
-/// Confirm dialogs (S13, docs/specs/phase10-apps-and-stores.md §A3, §E3): `UIAlertController` with the title and
-/// message right to left in the app font; destructive actions in the system's destructive style.
+/// Confirm dialogs (S13, docs/specs/phase10-apps-and-stores.md §A3, §E3): the stock `UIAlertController`, right to left
+/// with the brand tint; destructive actions in the system's destructive style. Its font is the system's (UIKit offers
+/// no public way to restyle an alert, and private keys are not used).
 @MainActor
 enum Alerts {
     static func make(title: String?, message: String?, style: UIAlertController.Style = .alert) -> UIAlertController {
+        // The stock alert (its own font, no private styling keys); right to left like every native screen.
         let alert = UIAlertController(title: title, message: message, preferredStyle: style)
-        if let title {
-            alert.setValue(FaText.attributed(title, size: 17, bold: true), forKey: "attributedTitle")
-        }
-        if let message {
-            alert.setValue(FaText.attributed(message, size: 14, color: Theme.ink2), forKey: "attributedMessage")
-        }
         alert.view.semanticContentAttribute = .forceRightToLeft
         alert.view.tintColor = Theme.brand
         return alert

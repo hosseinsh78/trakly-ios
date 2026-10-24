@@ -117,7 +117,7 @@ case "${1:-}" in
     xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
     case "$PASS" in
       flows) ONLY="-only-testing:TraklyUITests/FlowTests" ;;
-      shots) ONLY="-only-testing:TraklyUITests/ScreenshotTests" ;;
+      shots) ONLY="-only-testing:TraklyUITests/ScreenshotTests/testTheNativeScreens" ;;
       large) ONLY="-only-testing:TraklyUITests/ScreenshotTests/testTheShellAtALargeTextSize" ;;
       ios17) ONLY="-only-testing:TraklyUITests/FlowTests/testLaunchSignInAndTabs -only-testing:TraklyUITests/FlowTests/testComposerReaderReviewAndTheOrderForm -only-testing:TraklyUITests/FlowTests/testClearingShopData" ;;
       *) echo "unknown pass $PASS" >&2; exit 2 ;;
@@ -138,16 +138,32 @@ case "${1:-}" in
     mkdir -p "$OUT"
     xcrun xcresulttool export attachments --path "$RESULT" --output-path "$OUT" || true
     if [ -f "$OUT/manifest.json" ]; then
-      # Name every PNG after its attachment (manifest.json maps the exported files to the attachment names).
+      # Name every screenshot after its attachment (manifest.json maps the exported files to the attachment names); a
+      # failed test keeps its UI hierarchy and its screen recording, everything else of the export is dropped.
       OUT="$OUT" node -e '
         const fs = require("fs"), path = require("path");
         const dir = process.env.OUT;
         const manifest = JSON.parse(fs.readFileSync(path.join(dir, "manifest.json"), "utf8"));
         for (const test of manifest) {
-          for (const item of test.attachments || []) {
+          const items = test.attachments || [];
+          const failed = items.some((item) => (item.suggestedHumanReadableName || "").startsWith("App UI hierarchy"));
+          const testName = String(test.testIdentifier || "test").replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+$/, "");
+          let recordings = 0;
+          for (const item of items) {
             const from = path.join(dir, item.exportedFileName);
-            const name = (item.suggestedHumanReadableName || item.exportedFileName).replace(/[^A-Za-z0-9._-]+/g, "-");
-            if (fs.existsSync(from) && name.endsWith(".png")) fs.renameSync(from, path.join(dir, name));
+            if (!fs.existsSync(from)) continue;
+            const human = item.suggestedHumanReadableName || item.exportedFileName;
+            const name = human.replace(/_\d+_[0-9A-F-]{36}(?=\.png$)/i, "").replace(/[^A-Za-z0-9._-]+/g, "-");
+            if (name.endsWith(".png") && !human.startsWith("UI Snapshot")) {
+              fs.renameSync(from, path.join(dir, name));
+            } else if (failed && human.startsWith("App UI hierarchy")) {
+              fs.renameSync(from, path.join(dir, testName + "-hierarchy.txt"));
+            } else if (failed && from.endsWith(".mp4")) {
+              recordings += 1;
+              fs.renameSync(from, path.join(dir, testName + "-recording-" + recordings + ".mp4"));
+            } else {
+              fs.rmSync(from, { recursive: true, force: true });
+            }
           }
         }'
     fi

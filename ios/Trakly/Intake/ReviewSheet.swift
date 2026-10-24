@@ -297,27 +297,37 @@ struct ReviewSheet: View {
             .buttonStyle(PrimaryButtonStyle())
             .disabled(state.saving)
             .accessibilityIdentifier("review.add")
-            HStack(spacing: 10) {
-                if !state.line {
-                    Button(L.s("review_add_next")) {
-                        actions.add(state, true)
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                    .disabled(state.saving)
-                    .layoutPriority(2)
-                    .accessibilityIdentifier("review.next")
-                }
-                Button(L.s("review_cancel"), action: actions.cancel)
-                    .buttonStyle(SecondaryButtonStyle())
-                    .disabled(state.saving)
-                    .layoutPriority(1)
-                    .accessibilityIdentifier("review.cancel")
+            // Side by side when both fit on one line, else one under the other (large text, a small phone).
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) { secondaryButtons }
+                VStack(spacing: 8) { secondaryButtons }
             }
         }
         .padding(.horizontal, 16)
         .padding(.top, 10)
         .padding(.bottom, 8)
         .background(.bar)
+        // The pinned footer stops growing at the largest standard size, so the options above keep most of the sheet;
+        // the scroll area above follows every size.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+
+    @ViewBuilder
+    private var secondaryButtons: some View {
+        if !state.line {
+            Button(L.s("review_add_next")) {
+                actions.add(state, true)
+            }
+            .buttonStyle(SecondaryButtonStyle())
+            .lineLimit(1)
+            .disabled(state.saving)
+            .accessibilityIdentifier("review.next")
+        }
+        Button(L.s("review_cancel"), action: actions.cancel)
+            .buttonStyle(SecondaryButtonStyle())
+            .lineLimit(1)
+            .disabled(state.saving)
+            .accessibilityIdentifier("review.cancel")
     }
 }
 

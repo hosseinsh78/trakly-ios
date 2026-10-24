@@ -41,6 +41,22 @@ enum ChromePresenter {
             host.drawnTitle = chrome.title
         }
 
+        let isRoot = stack.nav.viewControllers.first === host
+        let signature = [chrome.createButton ? "create" : "", chrome.search ? "search" : "", chrome.action.map { "action:" + $0.id + ":" + $0.icon + ":" + $0.label } ?? "", chrome.backArrow && isRoot ? "back" : ""].joined(separator: "|")
+        if host.drawnButtons != signature {
+            host.drawnButtons = signature
+            buttons(chrome, on: item, isRoot: isRoot, targets: targets)
+        }
+
+        host.setFullScreen(chrome.fullScreen)
+        let hideBar = !chrome.navigationBar
+        if stack.nav.topViewController === host, stack.nav.isNavigationBarHidden != hideBar {
+            stack.nav.setNavigationBarHidden(hideBar, animated: animated)
+        }
+        stack.statusBarStyle = chrome.lightStatusBar && chrome.fullScreen ? .lightContent : .default
+    }
+
+    private static func buttons(_ chrome: PageState.Chrome, on item: UINavigationItem, isRoot: Bool, targets: Targets) {
         var trailing: [UIBarButtonItem] = []
         if chrome.createButton {
             let plus = UIBarButtonItem(title: nil, image: UIImage(systemName: "plus"), primaryAction: targets.create, menu: nil)
@@ -68,7 +84,7 @@ enum ChromePresenter {
 
         // The stack shows the system back arrow for a pushed host; a page that needs a back control on the root host
         // (single topology, an error page, a form opened in place) gets one that asks the page first.
-        if chrome.backArrow && stack.nav.viewControllers.first === host {
+        if chrome.backArrow && isRoot {
             let back = UIBarButtonItem(title: nil, image: UIImage(systemName: "chevron.backward"), primaryAction: targets.back, menu: nil)
             back.accessibilityLabel = L.s("bar_back")
             back.accessibilityIdentifier = "chrome.back"
@@ -76,13 +92,6 @@ enum ChromePresenter {
         } else {
             item.leftBarButtonItem = nil
         }
-
-        host.setFullScreen(chrome.fullScreen)
-        let hideBar = !chrome.navigationBar
-        if stack.nav.topViewController === host, stack.nav.isNavigationBarHidden != hideBar {
-            stack.nav.setNavigationBarHidden(hideBar, animated: animated)
-        }
-        stack.statusBarStyle = chrome.lightStatusBar && chrome.fullScreen ? .lightContent : .default
     }
 
     /// The tab bar shown or hidden (`auth`, `standalone` and the error-free full-screen pages have none).

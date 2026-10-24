@@ -105,7 +105,7 @@ final class FlowTests: XCTestCase {
         app.buttons["M"].tap()
         app.buttons["Ocean Blue"].tap()
         add.tap()
-        wait(app.otherElements["composer.line"].firstMatch.exists ? app.otherElements["composer.line"].firstMatch : app.staticTexts["Aurora Linen Shirt"], 15)
+        wait(app.descendants(matching: .any)["composer.line"].firstMatch, 15)
         let proceed = app.buttons["composer.continue"]
         XCTAssertTrue(proceed.isEnabled)
         proceed.tap()
@@ -175,7 +175,11 @@ final class FlowTests: XCTestCase {
         stale.tap()
         wait(app.webViews.staticTexts["این صفحه پیدا نشد"].firstMatch, 20)
         XCTAssertTrue(app.tabBars.firstMatch.exists)
-        XCTAssertTrue(app.navigationBars.buttons["chrome.back"].waitForExistence(timeout: 5))
+        // The error chrome: a back control, no plus button (the previous page's chrome is not carried over).
+        XCTAssertTrue(backButton(app).waitForExistence(timeout: 5))
+        XCTAssertFalse(plus(app).exists)
+        backButton(app).tap()
+        wait(stale, 15)
     }
 
     func testTheOfflineAndUpdateScreens() {
@@ -212,7 +216,7 @@ final class FlowTests: XCTestCase {
         wait(scan, 20)
         scan.tap()
         wait(app.staticTexts["scan.unavailable"], 15)
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["scan.cancel"].tap()
     }
 
     func testFilesAndPrint() {
@@ -226,8 +230,10 @@ final class FlowTests: XCTestCase {
         wait(export, 20)
         export.tap()
         // Quick Look shows the file (its own controls follow the device language).
-        wait(app.otherElements["QLPreviewControllerView"].exists ? app.otherElements["QLPreviewControllerView"] : app.navigationBars.matching(NSPredicate(format: "identifier CONTAINS[c] %@", "orders")).firstMatch, 20)
-        app.swipeDown(velocity: .fast)
+        wait(quickLook(app), 20)
+        wait(quickLook(app).staticTexts["NR-1160"].firstMatch, 20)
+        closeQuickLook(app)
+        XCTAssertFalse(quickLook(app).exists, "Quick Look is closed")
         let print = app.webViews.buttons["چاپ فاکتور"]
         wait(print, 15)
         print.tap()
@@ -254,8 +260,9 @@ final class FlowTests: XCTestCase {
         let order = app.webViews.links.containing(NSPredicate(format: "label CONTAINS %@", "مریم احمدی")).firstMatch
         wait(order, 20)
         order.tap()
-        wait(app.navigationBars.buttons["chrome.back"], 15)
-        app.navigationBars.buttons["chrome.back"].tap()
+        wait(app.webViews.staticTexts["اقلام"].firstMatch, 15)
+        wait(backButton(app), 15)
+        backButton(app).tap()
         wait(order, 15)
         tab(app, "خانه").tap()
         let quick = app.webViews.links["سفارش سریع"]

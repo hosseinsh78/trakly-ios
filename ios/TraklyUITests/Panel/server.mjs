@@ -236,7 +236,7 @@ const PAGES = {
     '/app/products/create': () => ({
         meta: { context: 'modal', tab: null, title: 'محصول تازه', refreshable: false, search: false, form: true },
         html: `${header('محصول تازه')}<div class="card form"><label>نام محصول<input name="name" data-dirty></label>
-          <label>بارکد<span class="inline"><input name="barcode" data-id="barcode" dir="ltr"><button class="ghost" data-id="scan">اسکن بارکد</button></span></label>
+          <div class="field"><label for="barcode">بارکد</label><span class="inline"><input id="barcode" name="barcode" data-id="barcode" dir="ltr"><button type="button" class="ghost" data-id="scan">اسکن بارکد</button></span></div>
           <p class="muted" data-id="scan-status"></p></div>`,
     }),
     '/app/setup': () => ({
@@ -511,7 +511,8 @@ const server = http.createServer(async (request, response) => {
             const [type, file] = ASSETS[pathname];
             return send(response, { type, body: readFileSync(file) });
         }
-        if (pathname === '/test/bridge') return send(response, { type: 'text/html; charset=utf-8', body: BRIDGE_TEST });
+        // A panel path (the navigation policy keeps only panel paths in a panel WebView), served without a session.
+        if (pathname === '/app/__test/bridge') return send(response, { type: 'text/html; charset=utf-8', body: BRIDGE_TEST });
         if (pathname === '/test/frame') return send(response, { type: 'text/html; charset=utf-8', body: FRAME_TEST });
 
         const shop = /^\/dev\/shop\/([a-z-]+)$/.exec(pathname);

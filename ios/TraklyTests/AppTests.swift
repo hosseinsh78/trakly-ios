@@ -109,7 +109,7 @@ final class BridgeGuardTests: XCTestCase {
         window.addSubview(panel.webView)
         panel.webView.frame = window.bounds
         window.makeKeyAndVisible()
-        panel.load("http://127.0.0.1:8000/test/bridge")
+        panel.load("http://127.0.0.1:8000/app/__test/bridge")
 
         var title = ""
         for _ in 0 ..< 100 {

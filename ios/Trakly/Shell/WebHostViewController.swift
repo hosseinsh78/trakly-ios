@@ -14,6 +14,8 @@ final class WebHostViewController: UIViewController {
     private(set) var fullScreen = false
     /// The chrome this host last drew (ChromePresenter).
     var drawnTitle: String?
+    /// The bar buttons this host last drew (they are made again only when they change).
+    var drawnButtons: String?
 
     init(stack: TabStack?) {
         self.stack = stack

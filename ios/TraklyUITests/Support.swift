@@ -37,6 +37,8 @@ extension XCTestCase {
     func wait(_ element: XCUIElement, _ timeout: TimeInterval = 15, file: StaticString = #filePath, line: UInt = #line) -> Bool {
         let found = element.waitForExistence(timeout: timeout)
         if !found {
+            // The screen at the failure, kept with the result bundle (ci.sh exports it with the shots).
+            shot("fail-\(name.replacingOccurrences(of: " ", with: "-"))-\(line)", XCUIApplication(), settle: 0)
             XCTFail("not found: \(element)", file: file, line: line)
         }
         return found
@@ -56,6 +58,28 @@ extension XCTestCase {
         password.typeText("password")
         web.buttons["ورود"].tap()
         _ = app.tabBars.firstMatch.waitForExistence(timeout: 20)
+    }
+
+    /// The back control of the bar: the system back button of a pushed host or the root host's «chrome.back».
+    func backButton(_ app: XCUIApplication) -> XCUIElement {
+        app.navigationBars.buttons.matching(NSPredicate(format: "identifier IN %@", ["chrome.back", "BackButton"])).firstMatch
+    }
+
+    /// The Quick Look sheet over the app (its own controls follow the device language).
+    func quickLook(_ app: XCUIApplication) -> XCUIElement {
+        app.otherElements["QLPreviewControllerView"]
+    }
+
+    /// Closes Quick Look with its close button (a swipe on the sheet when the button is not found).
+    func closeQuickLook(_ app: XCUIApplication) {
+        let sheet = quickLook(app)
+        let close = sheet.buttons.matching(NSPredicate(format: "identifier == %@ OR label IN %@", "QLOverlayDoneButtonAccessibilityIdentifier", ["close", "Close", "Done"])).firstMatch
+        if close.waitForExistence(timeout: 5) {
+            close.tap()
+        } else if sheet.exists {
+            sheet.navigationBars.firstMatch.swipeDown(velocity: .fast)
+        }
+        _ = sheet.waitForNonExistence(timeout: 10)
     }
 
     /// A screenshot kept with the result bundle, named `<device>-<appearance>-<name>.png` by ci.sh.

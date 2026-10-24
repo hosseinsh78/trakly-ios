@@ -213,6 +213,10 @@ final class AppCoordinator: NSObject {
     func visitInTab(_ tab: String, url: String) {
         let key = Tabs.rootPaths.contains { $0.0 == tab } ? tab : "home"
         let existed = pool.peek(pool.key(for: key)) != nil
+        if !existed {
+            // A new WebView loads the URL itself (not its root first).
+            pool.restoreUrls[pool.key(for: key)] = url
+        }
         selectTab(key, userAction: false)
         guard let panel = selectedPanel else { return }
         if !existed {

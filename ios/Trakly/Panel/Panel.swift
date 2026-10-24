@@ -92,7 +92,8 @@ final class Panel: NSObject {
 
     /// The page the chrome follows: the newest of this document, else the previous document's while the new one loads.
     var shownPage: PageState.Page? {
-        page ?? carriedPage
+        // An error document (HTTP ≥ 400) never sends a page: it gets the error chrome, not the previous page's (§B1 a).
+        page ?? (httpError == nil ? carriedPage : nil)
     }
 
     func load(_ url: String) {
