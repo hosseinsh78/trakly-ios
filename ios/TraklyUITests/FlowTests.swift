@@ -196,7 +196,7 @@ final class FlowTests: XCTestCase {
         let app = launch()
         signIn(app)
         let quick = app.webViews.links["سفارش سریع"]
-        wait(quick, 20)
+        wait(quick, 30)
         quick.tap()
         let close = app.navigationBars.buttons["modal.close"]
         wait(close, 15)
@@ -243,9 +243,9 @@ final class FlowTests: XCTestCase {
         StandIn.control("/__test/action?type=info.trakly.app.orders")
         XCUIDevice.shared.press(.home)
         app.activate()
-        let discard = app.buttons["حذف"]
-        wait(discard, 20)
-        discard.tap()
+        let keep = app.buttons["نگه داشتن پیش نویس"]
+        wait(keep, 20)
+        keep.tap()
         XCTAssertTrue(close.waitForNonExistence(timeout: 15), "no empty modal is left")
         XCTAssertFalse(app.textFields["composer.link"].exists)
         wait(app.webViews.links.containing(NSPredicate(format: "label CONTAINS %@", "مریم احمدی")).firstMatch, 25)
@@ -325,16 +325,16 @@ final class FlowTests: XCTestCase {
     }
 
     func testTheOpenPagesFollowTheSystemAppearance() {
-        XCUIDevice.shared.appearance = .light
+        // The system appearance is switched by the stand-in on the CI Mac (`simctl ui`), as Control Center would.
         addTeardownBlock {
-            XCUIDevice.shared.appearance = .light
+            StandIn.control("/__test/appearance?mode=light")
         }
         let app = launch()
         signIn(app)
         wait(app.webViews.staticTexts["theme-light"].firstMatch, 25)
-        XCUIDevice.shared.appearance = .dark
+        StandIn.control("/__test/appearance?mode=dark")
         wait(app.webViews.staticTexts["theme-dark"].firstMatch, 15)
-        XCUIDevice.shared.appearance = .light
+        StandIn.control("/__test/appearance?mode=light")
         wait(app.webViews.staticTexts["theme-light"].firstMatch, 15)
     }
 
@@ -405,10 +405,12 @@ final class FlowTests: XCTestCase {
         wait(app.tabBars.firstMatch, 25)
         XCTAssertFalse(app.buttons["lock.open"].exists, "a device without a passcode cannot hold the lock")
         app.terminate()
-        // The setting itself went off: a later launch (Face ID back, refusing here) does not lock.
+        // The setting itself went off: a later launch (Face ID back, refusing here) does not lock; the sign-in page
+        // (the stand-in's session cookie ends with the app) is not covered.
         let again = launch(["-TraklyFakeAuth", "failure"], reset: false)
-        wait(again.tabBars.firstMatch, 30)
-        XCTAssertFalse(again.buttons["lock.open"].exists)
+        wait(again.webViews.textFields.firstMatch, 45)
+        XCTAssertFalse(again.buttons["lock.open"].waitForExistence(timeout: 3))
+        XCTAssertTrue(again.webViews.textFields.firstMatch.isHittable)
     }
 
     func testTheScannerSaysWhenItCannotScan() {

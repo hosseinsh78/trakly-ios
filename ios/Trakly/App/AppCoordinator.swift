@@ -64,7 +64,6 @@ final class AppCoordinator: NSObject {
         intake.coordinator = self
         lock.coordinator = self
         hub.delegate = self
-        PanelWebViewFactory.windowWidth = window.bounds.width
         let topology = WebViewPool.Topology(rawValue: defaults.string(forKey: Keys.topology) ?? "") ?? .stacks
         pool = WebViewPool(topology: topology, hub: hub, events: self)
         tabs = Tabs.fromJson(defaults.string(forKey: Keys.tabs))
@@ -329,24 +328,20 @@ final class AppCoordinator: NSObject {
         }
     }
 
-    /// In CSS px: the safe area divided by the page zoom (the text size, PanelWebViewFactory.pageZoom).
     func insetsFor(_ panel: Panel) -> (top: Double, bottom: Double) {
         if modal?.panel === panel { return (0, 0) }
         if let stack = stack(of: panel), stack.top != nil, !chrome(for: panel, in: stack).fullScreen {
             return (0, 0)
         }
         let insets = window.safeAreaInsets
-        let zoom = max(Double(panel.webView.pageZoom), 1)
-        return ((Double(insets.top) / zoom).rounded(), (Double(insets.bottom) / zoom).rounded())
+        return (Double(insets.top), Double(insets.bottom))
     }
 
     /// The system text size changed: every panel page follows (§D5 "Text size" on iOS, fixer 2026-10-24).
     func textSizeChanged() {
-        PanelWebViewFactory.windowWidth = window.bounds.width
-        let zoom = PanelWebViewFactory.pageZoom()
-        for panel in pool.all where panel.webView.pageZoom != zoom {
-            panel.webView.pageZoom = zoom
-            sendInsets(panel)
+        let scale = PanelWebViewFactory.textScale()
+        for panel in pool.all {
+            PanelWebViewFactory.applyTextSize(scale, to: panel.webView)
         }
     }
 

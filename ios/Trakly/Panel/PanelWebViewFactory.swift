@@ -17,18 +17,28 @@ enum PanelWebViewFactory {
         return text.replacingOccurrences(of: "var ORIGIN = 'https://erp.trakly.info';", with: "var ORIGIN = '\(AppConfig.origin)';")
     }()
 
-    /// The width of the app's window in points (set by the coordinator; the zoom below keeps a 320 CSS px layout).
-    static var windowWidth: CGFloat = 0
-
     /// The panel pages follow the system text size (fixer 2026-10-24, the iOS side of §D5 "Text size", where Android
-    /// sets `textZoom` 100–130 from the font scale): the page zoom is the body text's scale, at least 1, at most 1.3,
-    /// and never so large that the page is laid out narrower than 320 CSS px (an iPhone SE stops at about 1.17). The
-    /// print WebView keeps 1 (paper does not follow the phone's text size).
-    static func pageZoom() -> CGFloat {
+    /// sets `textZoom` 100–130 from the font scale): the body text's Dynamic Type scale, at least 1, at most 1.3, applied
+    /// to the page's text only (`-webkit-text-size-adjust` on the root, as WebKit's own text size does; the layout keeps
+    /// the screen width, a page zoom would not reflow). The print WebView keeps 100 % (paper does not follow the phone).
+    static func textScale() -> CGFloat {
         let scale = UIFontMetrics(forTextStyle: .body).scaledValue(for: 100) / 100
-        let width = windowWidth
-        let widest = width > 0 ? max(1, width / 320) : 1.3
-        return (min(max(scale, 1), 1.3, widest) * 100).rounded() / 100
+        return (min(max(scale, 1), 1.3) * 100).rounded() / 100
+    }
+
+    /// The document-start script that sets the text size (CSSOM, so the page's CSP does not apply to it).
+    static func textSizeSource(_ scale: CGFloat) -> String {
+        let percent = Int((scale * 100).rounded())
+        return "(function(){var s=document.documentElement.style;s.setProperty('-webkit-text-size-adjust','\(percent)%','important');s.setProperty('text-size-adjust','\(percent)%','important');})();"
+    }
+
+    /// A new text size for a live panel WebView: its next documents (the user scripts again) and the one on screen.
+    static func applyTextSize(_ scale: CGFloat, to webView: WKWebView) {
+        let controller = webView.configuration.userContentController
+        controller.removeAllUserScripts()
+        controller.addUserScript(WKUserScript(source: shimSource, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
+        controller.addUserScript(WKUserScript(source: textSizeSource(scale), injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
+        webView.evaluateJavaScript(textSizeSource(scale), in: nil, in: .page) { _ in }
     }
 
     /// A panel WebView. `bridge` nil: a WebView of the panel without the bridge (the offscreen print WebView, §E9).
@@ -46,6 +56,7 @@ enum PanelWebViewFactory {
         let controller = WKUserContentController()
         if let bridge {
             controller.addUserScript(WKUserScript(source: shimSource, injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
+            controller.addUserScript(WKUserScript(source: textSizeSource(textScale()), injectionTime: .atDocumentStart, forMainFrameOnly: true, in: .page))
             controller.addScriptMessageHandler(WeakMessageHandler(bridge), contentWorld: .page, name: "trakly")
         }
         configuration.userContentController = controller
@@ -62,9 +73,6 @@ enum PanelWebViewFactory {
         webView.backgroundColor = Theme.canvas
         webView.isOpaque = false
         webView.translatesAutoresizingMaskIntoConstraints = false
-        if bridge != nil {
-            webView.pageZoom = pageZoom()
-        }
         return webView
     }
 }

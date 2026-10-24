@@ -72,21 +72,31 @@ extension XCTestCase {
         return found
     }
 
-    /// The panel stand-in's sign-in form, as the DemoSeeder shop owner of android-ui.yml (local password only).
+    /// The panel stand-in's sign-in form, as the DemoSeeder shop owner of android-ui.yml (local password only). Once
+    /// more when the form is still there with empty fields (a cold Simulator's first page was loaded again under the
+    /// typing now and then).
     func signIn(_ app: XCUIApplication) {
         let web = app.webViews.firstMatch
-        let username = web.textFields.firstMatch
-        // The first launch on a cold Simulator (a new runtime) starts WebKit's processes slowly.
-        if !username.waitForExistence(timeout: 45) {
-            return
+        for attempt in 0 ..< 2 {
+            let username = web.textFields.firstMatch
+            // The first launch on a cold Simulator (a new runtime) starts WebKit's processes slowly.
+            if !username.waitForExistence(timeout: attempt == 0 ? 45 : 10) {
+                return
+            }
+            // Only the sign-in page itself (not a page after it, such as the setup wizard with its own fields).
+            if attempt > 0, !web.secureTextFields.firstMatch.exists || (username.value as? String)?.contains("shop1") == true {
+                return
+            }
+            username.tap()
+            username.typeText("shop1")
+            let password = web.secureTextFields.firstMatch
+            password.tap()
+            password.typeText("password")
+            web.buttons["ورود"].tap()
+            if app.tabBars.firstMatch.waitForExistence(timeout: 20) {
+                return
+            }
         }
-        username.tap()
-        username.typeText("shop1")
-        let password = web.secureTextFields.firstMatch
-        password.tap()
-        password.typeText("password")
-        web.buttons["ورود"].tap()
-        _ = app.tabBars.firstMatch.waitForExistence(timeout: 20)
     }
 
     /// The back control of the bar: the system back button of a pushed host or the root host's «chrome.back».

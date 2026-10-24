@@ -369,6 +369,7 @@
         if (response.status === 409) return { ok: false, reason: 'session', message: '' };
         const data = await response.json();
         if (data.ok) return { ok: true, product: data.product, source: capture ? 'capture' : 'server' };
+        if (data.reason === 'permission') return { ok: false, reason: 'permission', message: '' };
         if (!capture && path.startsWith('/dev/shop/')) return { ok: false, reason: 'blocked', message: 'این سایت به سرور Trakly اجازه خواندن نمی دهد.' };
         return { ok: false, reason: data.reason || 'unreachable', message: data.message || '' };
     }

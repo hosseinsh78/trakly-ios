@@ -16,9 +16,11 @@
  * Test controls (the UI tests call them over HTTP): POST /__test/reset, /__test/min?value=<n>, /__test/down?on=1,
  * /__test/share?url=<link> and /__test/action?type=<quick action type> (picked up by a Debug build at its next
  * activation, as if the share extension or the home screen had sent them), /__test/line?url=<link> (the first line of
- * the next order form holds that link). The fixture link /dev/shop/forbidden answers the read with `permission`.
+ * the next order form holds that link), /__test/appearance?mode=light|dark (the booted Simulator's system appearance,
+ * through `xcrun simctl ui` on the CI Mac). The fixture link /dev/shop/forbidden answers the read with `permission`.
  */
 import http from 'node:http';
+import { execFile } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -517,6 +519,13 @@ const server = http.createServer(async (request, response) => {
             const queued = state.shares.filter(Boolean);
             state.shares = [];
             return send(response, { type: 'application/json', body: JSON.stringify(queued) });
+        }
+        if (pathname === '/__test/appearance') {
+            const mode = url.searchParams.get('mode') === 'dark' ? 'dark' : 'light';
+            execFile('xcrun', ['simctl', 'ui', 'booted', 'appearance', mode], (error) => {
+                send(response, { status: error ? 500 : 200, body: error ? String(error) : 'appearance ' + mode });
+            });
+            return;
         }
         if (pathname === '/__test/line') {
             state.lineUrl = url.searchParams.get('url') || '';

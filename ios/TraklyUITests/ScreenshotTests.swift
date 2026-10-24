@@ -132,8 +132,10 @@ final class ScreenshotTests: XCTestCase {
 
         // A toast while S4 is up (the read answers `permission`): above the sheet.
         type(app, link: "/dev/shop/forbidden")
-        Thread.sleep(forTimeInterval: 1.2)
-        shot("15b-s4-toast", app, settle: 0)
+        _ = app.descendants(matching: .any)["toast"].waitForExistence(timeout: 8)
+        shot("15b-s4-toast", app, settle: 0.3)
+        closeSheets(app)
+        Thread.sleep(forTimeInterval: 2.5)
 
         type(app, link: "/dev/shop/challenge?after=60000")
         _ = app.descendants(matching: .any)["reader.challenge"].waitForExistence(timeout: 30)
@@ -251,44 +253,71 @@ final class ScreenshotTests: XCTestCase {
         locked.terminate()
     }
 
-    /// Taps the first element of `app` whose identifier or label is one of `names`.
+    /// Taps the first element of `app` whose identifier or label is one of `names` (buttons first); an element that
+    /// exists but is not reported hittable is tapped at its centre.
     @discardableResult
-    private func tapFirst(_ app: XCUIApplication, _ names: [String], timeout: TimeInterval = 3) -> Bool {
-        let match = app.descendants(matching: .any).matching(NSPredicate(format: "identifier IN %@ OR label IN %@", names, names)).firstMatch
-        guard match.waitForExistence(timeout: timeout), match.isHittable else { return false }
-        match.tap()
+    private func press(_ app: XCUIApplication, _ names: [String], timeout: TimeInterval = 3, onlyHittable: Bool = false) -> Bool {
+        let predicate = NSPredicate(format: "identifier IN %@ OR label IN %@", names, names)
+        let button = app.buttons.matching(predicate).firstMatch
+        let match = button.waitForExistence(timeout: timeout) ? button : app.descendants(matching: .any).matching(predicate).firstMatch
+        guard match.exists, !onlyHittable || match.isHittable else { return false }
+        if match.isHittable {
+            match.tap()
+        } else {
+            match.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
         return true
     }
 
+    /// Safari's first-run screens and tips (they cover its toolbar).
+    private func dismissTips(_ safari: XCUIApplication) {
+        for _ in 0 ..< 3 {
+            guard press(safari, ["Close", "Dismiss", "Continue", "Not Now"], timeout: 1.5, onlyHittable: true) else { return }
+            Thread.sleep(forTimeInterval: 0.6)
+        }
+    }
+
+    /// Safari's accessibility tree kept with the shots (`-log-` names survive ci.sh's export), for a step not found.
+    private func keepTree(_ safari: XCUIApplication, _ step: String) {
+        let tree = XCTAttachment(string: safari.debugDescription)
+        tree.name = "\(environment["TRAKLY_DEVICE"] ?? "device")-\(environment["TRAKLY_APPEARANCE"] ?? "light")-log-share-\(step).txt"
+        tree.lifetime = .keepAlways
+        add(tree)
+        shot("28-share-sheet-missing", safari, settle: 0)
+    }
+
     /// The Share extension sheet (§L4): Safari on a fixture shop, Share, «Trakly». Safari's own controls follow the
-    /// Simulator's language (English) and differ between iOS versions, so each step tries the known names; a step that
-    /// is not found leaves the shot out (`28-share-sheet` missing in the report) instead of failing the pass.
+    /// Simulator's language (English) and differ between iOS versions (iOS 26: Share is in the «…» menu, behind a tip
+    /// the first time), so each step tries the known names; a step that is not found keeps Safari's tree and leaves the
+    /// shot out instead of failing the pass.
     func testTheShareExtensionSheet() {
         // The app is installed and its pending shares are cleared.
         let app = launch()
         app.terminate()
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
-        safari.launch()
-        for _ in 0 ..< 3 {
-            if !tapFirst(safari, ["Continue", "Not Now", "Close", "OK"], timeout: 2) { break }
-        }
         safari.open(URL(string: StandIn.origin + "/dev/shop/server-tee")!)
         _ = safari.webViews.staticTexts["Linen Tee"].firstMatch.waitForExistence(timeout: 30)
-        Thread.sleep(forTimeInterval: 1)
-        if !tapFirst(safari, ["ShareButton", "Share"]) {
-            _ = tapFirst(safari, ["MoreButton", "More", "PageMenuButton", "Page Menu", "TabOverviewMoreButton"])
-            _ = tapFirst(safari, ["ShareButton", "Share"])
+        Thread.sleep(forTimeInterval: 1.5)
+        dismissTips(safari)
+        var opened = press(safari, ["ShareButton", "Share"], timeout: 2)
+        if !opened, press(safari, ["MoreButton", "More", "More options", "PageMenuButton", "Page Menu", "TabOverviewMoreButton"], timeout: 3) {
+            Thread.sleep(forTimeInterval: 1)
+            opened = press(safari, ["ShareButton", "Share", "Share…"], timeout: 4)
+        }
+        guard opened else {
+            keepTree(safari, "menu")
+            return
         }
         let trakly = safari.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Trakly")).firstMatch
-        if !trakly.waitForExistence(timeout: 10) {
-            shot("28-share-sheet-missing", safari, settle: 0)
+        guard trakly.waitForExistence(timeout: 10) else {
+            keepTree(safari, "sheet")
             return
         }
         if !trakly.isHittable {
             safari.collectionViews.firstMatch.swipeLeft()
         }
         guard trakly.isHittable else {
-            shot("28-share-sheet-missing", safari, settle: 0)
+            keepTree(safari, "trakly")
             return
         }
         trakly.tap()
