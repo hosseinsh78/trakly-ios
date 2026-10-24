@@ -192,7 +192,7 @@ final class ReviewFixTests: XCTestCase {
         XCTAssertFalse(state.titleMissing)
     }
 
-    func testAToastIsDrawnInItsOwnWindowAboveTheAppAndTakesNoTouch() throws {
+    func testAToastIsDrawnInItsOwnWindowAboveTheAppAndTakesNoTouch() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let main = try XCTUnwrap(scene.windows.first { !($0 is ToastWindow) && $0.windowLevel == .normal })
         Toast.show(L.s("composer_permission"), in: main)
@@ -202,11 +202,32 @@ final class ReviewFixTests: XCTestCase {
         XCTAssertGreaterThan(toasts.windowLevel.rawValue, main.windowLevel.rawValue)
         XCTAssertLessThan(toasts.windowLevel.rawValue, (UIWindow.Level.alert + 1).rawValue, "the lock cover stays above a toast")
         XCTAssertNil(toasts.hitTest(CGPoint(x: 100, y: 100), with: nil), "touches reach the app below")
-        let label = try XCTUnwrap(toasts.subviews.first { $0.accessibilityIdentifier == "toast" } as? UILabel)
+        XCTAssertTrue(toasts.isUserInteractionEnabled, "a window without user interaction is left out of accessibility")
+        let root = try XCTUnwrap(toasts.rootViewController as? ToastRootViewController)
+        XCTAssertTrue(root.main === main)
+        XCTAssertTrue(root.statusBarSource?.viewIfLoaded?.window === main, "the app's window keeps deciding the status bar")
+        func shown() -> [UIView] {
+            root.view.subviews.filter { $0.accessibilityIdentifier == "toast" }
+        }
+        let label = try XCTUnwrap(shown().first as? UILabel)
         XCTAssertEqual(label.text, "شما اجازه ثبت سفارش ندارید.")
+        // Fixer, 2026-10-24 (third round): accessibility reads the label's own alpha, which the fade-out used to set to
+        // 0 the moment the toast came (VoiceOver and the UI tests never found it).
+        XCTAssertEqual(label.alpha, 1, "accessibility sees the toast while it is on screen")
+        XCTAssertTrue(label.isAccessibilityElement)
+        XCTAssertEqual(label.accessibilityLabel, "شما اجازه ثبت سفارش ندارید.")
         // A second toast replaces the first.
         Toast.show(L.s("rate"), in: main)
-        XCTAssertEqual(toasts.subviews.filter { $0.accessibilityIdentifier == "toast" }.count, 1)
+        XCTAssertEqual(shown().count, 1)
+        XCTAssertNil(label.superview)
+        XCTAssertEqual(shown().first?.alpha, 1)
+        // Still there a moment before its time is up, then gone with its window.
+        try await Task.sleep(nanoseconds: UInt64((Toast.visibleSeconds - 0.6) * 1_000_000_000))
+        XCTAssertEqual(shown().count, 1)
+        XCTAssertEqual(shown().first?.alpha, 1)
+        try await Task.sleep(nanoseconds: 2_000_000_000)
+        XCTAssertTrue(shown().isEmpty)
+        XCTAssertTrue(toasts.isHidden)
     }
 
     func testAPageGoneOffScreenTakesNoMessageAndLoadsAgainWhenShown() async throws {

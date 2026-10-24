@@ -48,13 +48,19 @@ enum QuickActions {
 /// Fixer, 2026-10-24: the toast used to be a subview of the app's window, which a sheet's accessibility container kept
 /// out of reach (VoiceOver and the UI tests did not find «شما اجازه ثبت سفارش ندارید.» over S4); the window takes no
 /// touch (they reach the app below) and never becomes key.
+/// Fixer, 2026-10-24 (third round): the fade-out used to be started with the toast (`animate(delay:)`), which set the
+/// label's alpha to 0 at once and only drew the fade later, so accessibility counted the toast as invisible for its whole
+/// life (VoiceOver could not reach it and the UI tests never found it, over S4 or after «پاک کردن داده سایت ها»). The
+/// fade-out now starts when the time is up. The window takes part in accessibility (user interaction on, every touch
+/// still passed down by `hitTest`) and has a root view controller like the cover window; the root follows the app's
+/// window for the status bar, so a toast never changes it. The toast sits above the keyboard when one is up.
 @MainActor
 enum Toast {
     /// One toast window per scene, made on the first toast.
     private static var windows: [ObjectIdentifier: ToastWindow] = [:]
 
     /// How long a toast stays (a Debug UI test may hold it longer, `-TraklyToastMs`, for its screenshot).
-    private static var visibleSeconds: TimeInterval {
+    static var visibleSeconds: TimeInterval {
         AppConfig.testArgument("TraklyToastMs").flatMap { Double($0) }.map { $0 / 1000 } ?? 2.4
     }
 
@@ -64,14 +70,18 @@ enum Toast {
             let made = ToastWindow(windowScene: scene)
             made.windowLevel = .normal + 1
             made.backgroundColor = .clear
-            made.isUserInteractionEnabled = false
+            made.rootViewController = ToastRootViewController()
             made.accessibilityIdentifier = "toasts"
             windows[ObjectIdentifier(scene)] = made
             return made
         }()
-        window.overrideUserInterfaceStyle = scene.windows.first { !($0 is ToastWindow) && $0.windowLevel == .normal }?.overrideUserInterfaceStyle ?? .unspecified
+        guard let root = window.rootViewController as? ToastRootViewController else { return }
+        let main = scene.windows.first { !($0 is ToastWindow) && $0.windowLevel == .normal }
+        root.main = main
+        window.overrideUserInterfaceStyle = main?.overrideUserInterfaceStyle ?? .unspecified
+        let stage = root.view!
         // A new toast replaces the one on screen.
-        for old in window.subviews where old.accessibilityIdentifier == "toast" {
+        for old in stage.subviews where old.accessibilityIdentifier == "toast" {
             old.removeFromSuperview()
         }
         let label = PaddedLabel()
@@ -84,21 +94,31 @@ enum Toast {
         label.alpha = 0
         label.translatesAutoresizingMaskIntoConstraints = false
         label.accessibilityIdentifier = "toast"
-        window.addSubview(label)
+        stage.addSubview(label)
         window.isHidden = false
+        root.setNeedsStatusBarAppearanceUpdate()
+        let resting = label.bottomAnchor.constraint(equalTo: stage.safeAreaLayoutGuide.bottomAnchor, constant: -72)
+        resting.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            label.centerXAnchor.constraint(equalTo: window.centerXAnchor),
-            label.leadingAnchor.constraint(greaterThanOrEqualTo: window.leadingAnchor, constant: 24),
-            label.bottomAnchor.constraint(equalTo: window.safeAreaLayoutGuide.bottomAnchor, constant: -72),
+            label.centerXAnchor.constraint(equalTo: stage.centerXAnchor),
+            label.leadingAnchor.constraint(greaterThanOrEqualTo: stage.leadingAnchor, constant: 24),
+            resting,
+            label.bottomAnchor.constraint(lessThanOrEqualTo: stage.keyboardLayoutGuide.topAnchor, constant: -16),
         ])
         UIAccessibility.post(notification: .announcement, argument: text)
         UIView.animate(withDuration: 0.2) { label.alpha = 1 }
-        UIView.animate(withDuration: 0.3, delay: visibleSeconds, options: []) {
-            label.alpha = 0
-        } completion: { [weak window] _ in
-            label.removeFromSuperview()
-            if let window, !window.subviews.contains(where: { $0.accessibilityIdentifier == "toast" }) {
-                window.isHidden = true
+        let seconds = visibleSeconds
+        Task { [weak label, weak window] in
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            // Replaced by a newer toast in the meantime: that one ends on its own.
+            guard let label, label.superview != nil else { return }
+            UIView.animate(withDuration: 0.3) {
+                label.alpha = 0
+            } completion: { _ in
+                label.removeFromSuperview()
+                if let window, !stage.subviews.contains(where: { $0.accessibilityIdentifier == "toast" }) {
+                    window.isHidden = true
+                }
             }
         }
     }
@@ -108,6 +128,51 @@ enum Toast {
 final class ToastWindow: UIWindow {
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         nil
+    }
+}
+
+/// The root of the toast window: a clear stage for the toast. While the window is up it would decide the status bar,
+/// so it answers what the app's window shows (a full-screen presentation or one that captures the status bar, else
+/// the root, down their `childForStatusBar…` chain).
+@MainActor
+final class ToastRootViewController: UIViewController {
+    weak var main: UIWindow?
+
+    override func loadView() {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.semanticContentAttribute = .forceRightToLeft
+        self.view = view
+    }
+
+    /// The view controller of the app's window that sets the status bar.
+    var statusBarSource: UIViewController? {
+        var top = main?.rootViewController
+        while let presented = top?.presentedViewController, !presented.isBeingDismissed,
+              presented.modalPresentationStyle == .fullScreen || presented.modalPresentationCapturesStatusBarAppearance {
+            top = presented
+        }
+        return top
+    }
+
+    private func settled(_ next: (UIViewController) -> UIViewController?) -> UIViewController? {
+        var current = statusBarSource
+        while let now = current, let child = next(now), child !== now {
+            current = child
+        }
+        return current
+    }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        settled { $0.childForStatusBarStyle }?.preferredStatusBarStyle ?? .default
+    }
+
+    override var prefersStatusBarHidden: Bool {
+        settled { $0.childForStatusBarHidden }?.prefersStatusBarHidden ?? false
+    }
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        .portrait
     }
 }
 
