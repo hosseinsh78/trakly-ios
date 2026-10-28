@@ -229,9 +229,11 @@ final class TabsAndPageStateTests: XCTestCase {
         let sheet = PageState.chrome(page: page("tab", tab: "home", overlay: true), httpError: nil, tabs: tabs, coldStartBars: false, night: false, canGoBack: false)
         XCTAssertFalse(sheet.refreshable)
         let error = PageState.chrome(page: nil, httpError: 404, tabs: tabs, coldStartBars: false, night: true, canGoBack: true)
-        XCTAssertTrue(error.tabBar && error.backArrow && error.refreshable && error.lightStatusBar)
+        XCTAssertTrue(error.navigationBar && error.backArrow && error.refreshable && error.lightStatusBar)
+        XCTAssertFalse(error.tabBar)
         let none = PageState.chrome(page: nil, httpError: nil, tabs: tabs, coldStartBars: false, night: false, canGoBack: false)
-        XCTAssertFalse(none.navigationBar)
+        // §P10b: the web chrome — no bars, the WebView in the safe area.
+        XCTAssertFalse(none.navigationBar || none.tabBar || none.createButton || none.fullScreen)
         let cold = PageState.chrome(page: nil, httpError: nil, tabs: tabs, coldStartBars: true, night: false, canGoBack: false)
         XCTAssertTrue(cold.tabBar)
     }

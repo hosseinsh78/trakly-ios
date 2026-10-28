@@ -64,8 +64,8 @@ final class AppCoordinator: NSObject {
         intake.coordinator = self
         lock.coordinator = self
         hub.delegate = self
-        let topology = WebViewPool.Topology(rawValue: defaults.string(forKey: Keys.topology) ?? "") ?? .stacks
-        pool = WebViewPool(topology: topology, hub: hub, events: self)
+        // One WebView since phase 10b (§P10b): the page's own bottom bar moves between the sections.
+        pool = WebViewPool(topology: .single, hub: hub, events: self)
         tabs = Tabs.fromJson(defaults.string(forKey: Keys.tabs))
         tabBar = TabBarController(coordinator: self)
         root = RootViewController(tabs: tabBar)
@@ -255,16 +255,12 @@ final class AppCoordinator: NSObject {
 
     /// The chrome of `panel` in its stack.
     func chrome(for panel: Panel, in stack: TabStack) -> PageState.Chrome {
-        let lastContext = defaults.string(forKey: Keys.lastContext)
-        let coldStartBars = launchCoverShown && lastContext == "tab" && tabs.fromWeb == false && panel.shownPage == nil
-        // A tab's first page still loading after a tab switch: the bars stay (they never blink away), with no title.
-        let tabLoading = !launchCoverShown && tabs.fromWeb && panel.shownPage == nil && panel !== modal?.panel
-            && Tabs.rootPaths.contains { $0.0 == stack.key }
+        // No cold-start or tab-loading bars since phase 10b: the page draws its own (§P10b).
         return PageState.chrome(
             page: panel.shownPage,
             httpError: panel.httpError,
             tabs: tabs,
-            coldStartBars: (coldStartBars || tabLoading) && !tabs.items.isEmpty,
+            coldStartBars: false,
             night: resolvedNight,
             canGoBack: stack.depth > 1 || panel.webView.canGoBack
         )
@@ -308,7 +304,8 @@ final class AppCoordinator: NSObject {
             updateRefreshControl(panel, refreshable: chrome.refreshable)
             sendInsets(panel)
         } else {
-            ChromePresenter.setTabBar(hidden: !(tabs.fromWeb || defaults.string(forKey: Keys.lastContext) == "tab"), on: tabBar, animated: false)
+            // The page draws its own bottom bar since phase 10b (§P10b).
+            ChromePresenter.setTabBar(hidden: true, on: tabBar, animated: false)
         }
         if let modal {
             modal.update(page: modal.panel.shownPage)

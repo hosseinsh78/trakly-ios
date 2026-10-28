@@ -100,6 +100,10 @@ public enum PageState {
         }
 
         public static let none = Chrome(navigationBar: false, tabBar: false, backArrow: false, title: "", search: false, action: nil, refreshable: false, createButton: false, lightStatusBar: true, fullScreen: true)
+
+        /// Phase 10b (owner 2026-10-28, spec §P10b): the page draws the mobile web's own Topbar and bottom bar, so native
+        /// draws nothing and the WebView keeps to the safe area (the page keeps no insets itself).
+        public static let web = Chrome(navigationBar: false, tabBar: false, backArrow: false, title: "", search: false, action: nil, refreshable: false, createButton: false, lightStatusBar: true, fullScreen: false)
     }
 
     /// The chrome of a tab WebView: `page` is the newest `page` of its current document (nil when the document sent
@@ -109,15 +113,16 @@ public enum PageState {
     public static func chrome(page: Page?, httpError: Int?, tabs: Tabs.State, coldStartBars: Bool, night: Bool, canGoBack: Bool) -> Chrome {
         guard let page else {
             if let httpError, httpError >= 400 {
-                // §B1 (a): an error page keeps the tab bar, a back control and pull to refresh.
-                return Chrome(navigationBar: true, tabBar: true, backArrow: canGoBack, title: "", search: false, action: nil, refreshable: true, createButton: false, lightStatusBar: night, fullScreen: false)
+                // §B1 (a): a server error page (no web chrome) keeps a back control and pull to refresh.
+                return Chrome(navigationBar: true, tabBar: false, backArrow: canGoBack, title: "", search: false, action: nil, refreshable: true, createButton: false, lightStatusBar: night, fullScreen: false)
             }
             if coldStartBars {
                 return Chrome(navigationBar: true, tabBar: true, backArrow: false, title: "", search: false, action: nil, refreshable: false, createButton: false, lightStatusBar: night, fullScreen: false)
             }
-            var none = Chrome.none
-            none.lightStatusBar = night
-            return none
+            // Every panel page since phase 10b: the web chrome (§P10b).
+            var web = Chrome.web
+            web.lightStatusBar = night
+            return web
         }
         switch page.context {
         case "auth", "standalone":
